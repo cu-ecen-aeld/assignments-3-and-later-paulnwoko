@@ -20,6 +20,6 @@ void test_validate_my_username()
      */
      const char *my_username_from_autotest_validate = my_username();
      const char *my_username_from_conf_file = malloc_username_from_conf_file();
-     printf("my_username_from_autotest_validate = %s, my_username_from_conf_file = %s\n",my_username_from_autotest_validate, my_username_from_conf_file);
+     //printf("my_username_from_autotest_validate = %s, my_username_from_conf_file = %s\n",my_username_from_autotest_validate, my_username_from_conf_file);
      TEST_ASSERT_EQUAL_STRING (my_username_from_autotest_validate, my_username_from_conf_file);
 }
