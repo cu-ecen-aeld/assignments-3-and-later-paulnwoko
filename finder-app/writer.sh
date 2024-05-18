@@ -1,4 +1,4 @@
-#!/bin/sh 
+#!/bin/bash 
 # using #!/bin/sh will require sudo the give the script read write acess to filesystem
 # using #!/bin/bash will not require sudo the give the script read write acess to filesystem
 
