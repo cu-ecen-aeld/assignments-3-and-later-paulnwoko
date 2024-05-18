@@ -1,8 +1,10 @@
 #!/bin/bash
 
-#varriables
+#input varriables
 FILESDIR=$1
 SEARCHSTR=$2
+
+#get number of argument parsed
 NUM_OF_ARG=$#
 
 NO_OF_MATCHING_LINES=0
