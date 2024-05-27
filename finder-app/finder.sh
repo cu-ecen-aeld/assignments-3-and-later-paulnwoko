@@ -13,9 +13,9 @@ NO_OF_FILES=0
 #check for valid arg entry
 if [ ${NUM_OF_ARG} -eq 2 ]
 then
-   #check if dir entered is truly a dir
+   #check if dir entered is truly a dir on the filesystem
    if [ -d ${FILESDIR} ]
-   then    
+   then
       #count files in dir
       #NO_OF_FILES=$(ls -A | wc -l)
       #count files in dir and subdir
@@ -26,7 +26,7 @@ then
       NO_OF_MATCHING_LINES=$(grep -r -o ${SEARCHSTR} * | wc -l)
       echo "The number of files are ${NO_OF_FILES} and the number of matching lines are ${NO_OF_MATCHING_LINES}"
       #echo "Is a DIR = ${FILESDIR} and str = ${SEARCHSTR} ARG = ${NUM_OF_ARG}"
-      exit 1
+      exit 0
    else
       echo "ERROR: First argument does not represent a directory on the filesystem"
     fi

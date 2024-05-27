@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/sh 
 # using #!/bin/sh will require sudo the give the script read write acess to filesystem
 # using #!/bin/bash will not require sudo the give the script read write acess to filesystem
 
@@ -20,20 +20,26 @@ then
 	#check if dir is a dir in the filesystem
 	if [ -d ${FILESDIR} ]
 	then
-		echo "Directory exist, Atempting to write file: $FILENAME"
+		echo "Directory exist, Atempting to write $FILENAME"
 		#create file in the dir
 		#touch ${writefile}
 		
 		#create and write string to file over-writing existing content
 		echo ${writestr} > ${writefile} || { echo "Error: Could not write to file."; exit 1; }
 		echo "String written"
+		exit 0
 
 	else
 		#echo "Directory does not exist, creating: $FILESDIR"
 		#create dir : -v flag enables verbose and -p flag enables creation of subdirectories
-		mkdir -v -p ${FILESDIR} || { echo "Error: Could not create directory."; exit 1; }
-		#create file in the dir
-		#touch ${writefile}
+		mkdir -p ${FILESDIR} #|| { echo "Error: Could not create directory."; exit 1; }
+		
+		if [ -d ${FILESDIR} ] 
+		then
+			echo "${FILESDIR} created"
+		else
+			exit 0
+		fi
 		
 		#create and write string to file over-writing existing content
 		echo ${writestr} > ${writefile} || { echo "Error: Could not create directory."; exit 1; }
