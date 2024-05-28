@@ -26,7 +26,7 @@ then
 		
 		#create and write string to file over-writing existing content
 		echo ${writestr} > ${writefile} || { echo "Error: Could not write to file."; exit 1; }
-		echo "String written"
+		echo "String Written"
 		exit 0
 
 	else
