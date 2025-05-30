@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
         //open file if the file already exists, create it.
         // fd = open(writefile, O_RDWR|O_CREAT|O_TRUNC|O_APPEND,S_IRWXU);
         int fd = open(writefile, O_WRONLY | O_CREAT | O_TRUNC,S_IRWXU);
-        if (fd == -1)
+        if (fd == -1)//fd<0
         {
             perror("Failed to open file");
             
@@ -44,14 +44,18 @@ int main(int argc, char *argv[])
             closelog(); //Closes the log connection
             return 1;
         }
-        else{
+        else{//fd>0
             // printf("opening file : %d\n\r", errno);
             perror("Opening file...");
             
             //write to file
             ssize_t ws;//size of text to be written in byte
-            ws = write (fd, writefile, strlen (writestr));
-            int cl = close(fd);
+            int cd; // close descriptor
+
+            ws = write (fd, writefile, 12);
+            cd = close(fd);
+            cd = close(fd);
+            perror("close after writting ");
 
             if (ws == -1) {
                 perror("Failed to write to file");
@@ -59,20 +63,25 @@ int main(int argc, char *argv[])
                 openlog("writer_app", LOG_PID | LOG_CONS, LOG_USER);//
                 syslog(LOG_ERR,"Failed to write to %s : %s", argv[1], strerror(errno));//Sends a log message to the syslog system.
                 closelog(); //Closes the log connection
-                
+
+                cd = close(fd); //close file
                 return 1;
             }
             else if(ws != (ssize_t) strlen(writestr)){
-                perror("Partial write");
-                // close(fd);
+                printf("Partial write : wrote %zu bytes instead of %zu bytes\r\n", ws, strlen(writestr));
+                
                 openlog("writer_app", LOG_PID | LOG_CONS, LOG_USER);//
                 syslog(LOG_ERR,"Partial write to %s : %s", argv[1], strerror(errno));//Sends a log message to the syslog system.
                 closelog(); //Closes the log connection
                 
+                cd = close(fd); //close file
                 return 1;
             }
-              // Close the file descriptor
-            if (cl == -1) {
+            else ;
+
+            // Close the file descriptor
+            if (cd == -1) {
+                errno = 0;
                 perror("close");
                 openlog("writer_app", LOG_PID | LOG_CONS, LOG_USER);//
                 syslog(LOG_ERR,"Closing %s... : %s", argv[1], strerror(errno));//Sends a log message to the syslog system.
@@ -80,6 +89,7 @@ int main(int argc, char *argv[])
                 
                 return 1;
             }
+
 
             perror("writing file...");
 
