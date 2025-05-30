@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
                 printf("Partial write : wrote %zu bytes instead of %zu bytes\r\n", ws, strlen(writestr));
                 
                 openlog("writer_app", LOG_PID | LOG_CONS, LOG_USER);//
-                syslog(LOG_ERR,"Partial write to %s : %s", argv[1], strerror(errno));//Sends a log message to the syslog system.
+                syslog(LOG_DEBUG,"Partial write to %s : %s", argv[1], strerror(errno));//Sends a log message to the syslog system.
                 closelog(); //Closes the log connection
                 
                 cd = close(fd); //close file
