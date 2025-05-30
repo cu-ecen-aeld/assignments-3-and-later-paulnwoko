@@ -84,6 +84,7 @@ int main(int argc, char *argv[])
             closelog(); //Closes the log connection (optional but good practice).Helps free up any associated resources.
             return 0;                   
         }
+    }
 
     // return 0;
 }
