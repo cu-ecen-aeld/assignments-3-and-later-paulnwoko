@@ -54,8 +54,8 @@ int main(int argc, char *argv[])
 
             ws = write (fd, writefile, 12);
             cd = close(fd);
-            cd = close(fd);
-            perror("close after writting ");
+            // cd = close(fd);
+            // perror("close after writting ");
 
             if (ws == -1) {
                 perror("Failed to write to file");
@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
                 printf("Partial write : wrote %zu bytes instead of %zu bytes\r\n", ws, strlen(writestr));
                 
                 openlog("writer_app", LOG_PID | LOG_CONS, LOG_USER);//
-                syslog(LOG_DEBUG,"Partial write to %s : %s", argv[1], strerror(errno));//Sends a log message to the syslog system.
+                syslog(LOG_DEBUG,"Partial write to %s, %zu bytes written instead of %zu bytes : %s", argv[1], ws, strlen(writestr), strerror(errno));//Sends a log message to the syslog system.
                 closelog(); //Closes the log connection
                 
                 cd = close(fd); //close file
