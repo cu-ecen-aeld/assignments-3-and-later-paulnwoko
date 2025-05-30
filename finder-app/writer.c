@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <string.h>
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -46,7 +45,7 @@ int main(int argc, char *argv[])
             return 1;
         }
         else{
-            printf("opening file : %d\n\r", errno);
+            // printf("opening file : %d\n\r", errno);
             perror("Opening file...");
             
             //write to file
@@ -58,7 +57,7 @@ int main(int argc, char *argv[])
                 perror("Failed to write to file");
                 // close(fd);
                 openlog("writer_app", LOG_PID | LOG_CONS, LOG_USER);//
-                syslog(LOG_ERR,"Writing %s to %s : %s", argv[2], argv[1], strerror(errno));//Sends a log message to the syslog system.
+                syslog(LOG_ERR,"Failed to write to %s : %s", argv[1], strerror(errno));//Sends a log message to the syslog system.
                 closelog(); //Closes the log connection
                 
                 return 1;
@@ -85,7 +84,7 @@ int main(int argc, char *argv[])
             perror("writing file...");
 
             openlog("writer_app", LOG_PID | LOG_CONS, LOG_USER);//
-            syslog(LOG_DEBUG,"Writing %s to %s : %s", argv[2], argv[1], strerror(errno));//Sends a log message to the syslog system.
+            syslog(LOG_DEBUG,"Writing \"%s\" to %s : %s", argv[2], argv[1], strerror(errno));//Sends a log message to the syslog system.
             closelog(); //Closes the log connection (optional but good practice).Helps free up any associated resources.
             return 0;            
         }
