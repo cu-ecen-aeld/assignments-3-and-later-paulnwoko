@@ -52,8 +52,8 @@ int main(int argc, char *argv[])
             int cd; // close descriptor
 
             //write to file
-            ws = write (fd, writefile, 12);
-            // cd = close(fd);
+            ws = write (fd, writefile, strlen(writestr));
+            // cd = close(fd);            
 
             if (ws == -1) {
                 perror("Failed to write to file");
@@ -75,13 +75,13 @@ int main(int argc, char *argv[])
                 cd = close(fd); //close file
                 return 1;
             }
-            else ;
-            
-            perror("writing file...");
+            else cd = close(fd);
 
+            perror("writing file...");
+            
             openlog("writer_app", LOG_PID | LOG_CONS, LOG_USER);//
-            syslog(LOG_DEBUG,"Writing \"%s\" to %s : %s", argv[2], argv[1], strerror(errno));//Sends a log message to the syslog system.
-            closelog(); //Closes the log connection (optional but good practice).Helps free up any associated resources.
+            syslog(LOG_DEBUG,"Writing \"%s\" to %s, %zu/%zu bytes written : %s", argv[2], argv[1], ws, strlen(writestr), strerror(errno));//Sends a log message to the syslog system.
+            closelog(); //Closes the log connection
             return 0;                   
         }
     }
