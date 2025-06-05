@@ -15,6 +15,7 @@ CC := $(CROSS_COMPILE)gcc
 # -Werror: Treats warnings as errors.
 # -g: Includes debug symbols.
 # -I.: Adds the current directory to the list of directories to search for header files.
+# Add -I<path> if your headers are elsewhere
 # CFLAGS := -Wall -Werror -g
 CFLAGS := -Wall -g -I.
 
