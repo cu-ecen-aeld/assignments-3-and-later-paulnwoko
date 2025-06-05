@@ -1,0 +1,41 @@
+# Makefile for building "writer" application
+
+
+# Variables
+
+# 🔧 Toolchain Configuration
+# CC is the compiler variable used by make. 
+# CROSS_COMPILE is a user-supplied prefix. For example:
+# If CROSS_COMPILE is not set, CC = gcc (native compiler).
+# If you run make CROSS_COMPILE=aarch64-none-linux-gnu-, then CC = aarch64-none-linux-gnu-gcc (cross-compiler).
+CC := $(CROSS_COMPILE)gcc
+
+# ⚙️  Compiler Flags
+# -Wall: Enables all common warnings.
+# -Werror: Treats warnings as errors.
+# -g: Includes debug symbols.
+# -I.: Adds the current directory to the list of directories to search for header files.
+# CFLAGS := -Wall -Werror -g
+CFLAGS := -Wall -g -I.
+
+# 🎯 Target and Object Definitions
+TARGET := writer
+OBJS := writer.o
+
+# Default target
+all: $(TARGET)
+
+# Link the final binary
+$(TARGET): $(OBJS)
+	$(CC) $(CFLAGS) -o $@ $^
+
+# Compile .c to .o
+%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+# Clean target
+clean:
+	rm -f $(TARGET) *.o
+
+# Phony targets
+.PHONY: all clean
