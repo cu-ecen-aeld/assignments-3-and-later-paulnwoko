@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
         printf("No argument parsed\n\rEnter arguments in this format: [path to file] [string to be written to the file]\n\r");
         return 1;
     }
-    else if(argc < 3)
+    else if(argc != 3)
     {
         printf("Expecting two arguments\n\r"); 
         printf("Enter arguments in this format: [path to file] [string to be written to the file]\n\r");       
@@ -86,5 +86,5 @@ int main(int argc, char *argv[])
         }
     }
 
-    // return 0;
+    return 0;
 }
