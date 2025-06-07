@@ -73,14 +73,15 @@ int main(int argc, char *argv[])
                 close(fd); //close file
                 return 1;
             }
-            else close(fd);
-
-            perror("writing file...");
+            else{
+                //perror("writing file...");
             
-            openlog("writer_app", LOG_PID | LOG_CONS, LOG_USER);//
-            syslog(LOG_DEBUG,"Writing \"%s\" to %s, %zu/%zu bytes written : %s", argv[2], argv[1], ws, strlen(writestr), strerror(errno));//Sends a log message to the syslog system.
-            closelog(); //Closes the log connection
-            return 0;                   
+                openlog("writer_app", LOG_PID | LOG_CONS, LOG_USER);//
+                syslog(LOG_DEBUG,"Writing \"%s\" to %s, %zu/%zu bytes written : %s", argv[2], argv[1], ws, strlen(writestr), strerror(errno));//Sends a log message to the syslog system.
+                close(fd);
+                closelog(); //Closes the log connection
+                return 0;
+            }
         }
     }
 
