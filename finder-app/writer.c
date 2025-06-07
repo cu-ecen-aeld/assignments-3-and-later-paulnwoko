@@ -49,10 +49,10 @@ int main(int argc, char *argv[])
             perror("Opening file...");
             
             ssize_t ws;//size of text to be written in byte
-            int cd; // close descriptor
+            //int cd; // close descriptor
 
             //write to file
-            ws = write (fd, writefile, strlen(writestr));
+            ws = write (fd, writestr, strlen(writestr));
             // cd = close(fd);            
 
             if (ws == -1) {
@@ -62,7 +62,7 @@ int main(int argc, char *argv[])
                 syslog(LOG_ERR,"Failed to write to %s : %s", argv[1], strerror(errno));//Sends a log message to the syslog system.
                 closelog(); //Closes the log connection
 
-                cd = close(fd); //close file
+                close(fd); //close file
                 return 1;
             }
             else if(ws != (ssize_t) strlen(writestr)){
@@ -72,10 +72,10 @@ int main(int argc, char *argv[])
                 syslog(LOG_DEBUG,"Partial write to %s, wrote %zu bytes out of %zu bytes : %s", argv[1], ws, strlen(writestr), strerror(errno));//Sends a log message to the syslog system.
                 closelog(); //Closes the log connection
                 
-                cd = close(fd); //close file
+                close(fd); //close file
                 return 1;
             }
-            else cd = close(fd);
+            else close(fd);
 
             perror("writing file...");
             
