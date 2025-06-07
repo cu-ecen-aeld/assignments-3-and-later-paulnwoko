@@ -23,15 +23,13 @@ int main(int argc, char *argv[])
     }
     else if(argc == 3)
     {
-        //check if the dir exist and write to the file
-        // printf("no. of arg : %d \n\r dir : %s\n\r",argc, argv[1]);
         
         const char *writefile = argv[1];
         const char *writestr = argv[2];
                 
         printf("path to file: %s\n\rwrite string: %s\n\r", writefile, writestr);
 
-        //open file if the file already exists, create it.
+        //open file if the file already exists, else create it.
         // fd = open(writefile, O_RDWR|O_CREAT|O_TRUNC|O_APPEND,S_IRWXU);
         int fd = open(writefile, O_WRONLY | O_CREAT | O_TRUNC,S_IRWXU);
         
