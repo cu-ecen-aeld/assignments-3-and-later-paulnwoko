@@ -54,24 +54,30 @@ int main(int argc, char *argv[])
             ws = write (fd, writestr, strlen(writestr));
             // cd = close(fd);            
 
-            if (ws == -1) {
+            if (fd == -1) {
                 perror("Failed to write to file");
                 // close(fd);
                 openlog("writer_app", LOG_PID | LOG_CONS, LOG_USER);//
                 syslog(LOG_ERR,"Failed to write to %s : %s", argv[1], strerror(errno));//Sends a log message to the syslog system.
                 closelog(); //Closes the log connection
 
-                close(fd); //close file
+                //close(fd); //close file
+                if (close (fd) == -1)
+                    perror ("close");
+                
                 return 1;
             }
-            else if(ws != (ssize_t) strlen(writestr)){
+            else if((ws != (ssize_t) strlen(writestr)) & (fd != -1)){ //ie if the fd indicate sucessfull write and size written is less than achual size
                 printf("Partial write : wrote %zu bytes out of %zu bytes\r\n", ws, strlen(writestr));
                 
                 openlog("writer_app", LOG_PID | LOG_CONS, LOG_USER);//
                 syslog(LOG_DEBUG,"Partial write to %s, wrote %zu bytes out of %zu bytes : %s", argv[1], ws, strlen(writestr), strerror(errno));//Sends a log message to the syslog system.
                 closelog(); //Closes the log connection
                 
-                close(fd); //close file
+                //close(fd); //close file
+                if (close (fd) == -1)
+                    perror ("close");
+
                 return 1;
             }
             else{
@@ -79,7 +85,9 @@ int main(int argc, char *argv[])
                 // printf("%d\r\n", fd);
                 openlog("writer_app", LOG_PID | LOG_CONS, LOG_USER);//
                 syslog(LOG_DEBUG,"Writing \"%s\" to %s, %zu/%zu bytes written : %s", argv[2], argv[1], ws, strlen(writestr), strerror(errno));//Sends a log message to the syslog system.
-                close(fd);
+                //close(fd);
+                if (close (fd) == -1)
+                    perror ("close");
                 closelog(); //Closes the log connection
                 return 0;
             }
