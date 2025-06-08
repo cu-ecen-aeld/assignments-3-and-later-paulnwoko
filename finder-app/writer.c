@@ -23,7 +23,7 @@ int main(int argc, char *argv[])
     }
     else if(argc == 3)
     {
-        
+        //get path to file and string to written to file from the parsed arguments
         const char *writefile = argv[1];
         const char *writestr = argv[2];
                 
@@ -33,7 +33,8 @@ int main(int argc, char *argv[])
         // fd = open(writefile, O_RDWR|O_CREAT|O_TRUNC|O_APPEND,S_IRWXU);
         int fd = open(writefile, O_WRONLY | O_CREAT | O_TRUNC,S_IRWXU);
         
-        if (fd == -1)//fd<0
+        //fd<0 failed to open
+        if (fd == -1)
         {
             perror("Failed to open file");
             
@@ -42,7 +43,7 @@ int main(int argc, char *argv[])
             closelog(); //Closes the log connection
             return 1;
         }
-        else{//fd>0
+        else{//fd>0 openned successfully
             // printf("opening file : %d\n\r", errno);
             perror("Opening file...");
             
@@ -74,8 +75,8 @@ int main(int argc, char *argv[])
                 return 1;
             }
             else{
-                //perror("writing file...");
-            
+                perror("writing file...");
+                // printf("%d\r\n", fd);
                 openlog("writer_app", LOG_PID | LOG_CONS, LOG_USER);//
                 syslog(LOG_DEBUG,"Writing \"%s\" to %s, %zu/%zu bytes written : %s", argv[2], argv[1], ws, strlen(writestr), strerror(errno));//Sends a log message to the syslog system.
                 close(fd);
