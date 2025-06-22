@@ -16,8 +16,25 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
+    // if(cmd == NULL) return false;
 
-    return true;
+    int ret = system(cmd);
+
+    if (ret == -1){
+        // system() failed
+        perror("error : ");
+        return false;
+    }
+
+    // Check if child exited normally and with exit code 0
+    else if (WIFEXITED(ret) && WEXITSTATUS(ret) == 0) {
+        printf("Success \r\n");
+        return true;
+    }
+
+    // Command failed or exited abnormally
+    return false;
+    //return true;
 }
 
 /**
@@ -58,6 +75,12 @@ bool do_exec(int count, ...)
  *   as second argument to the execv() command.
  *
 */
+
+    int status;
+    pid_t pid;
+
+    //pid = fork();
+
 
     va_end(args);
 
