@@ -76,8 +76,8 @@ bool do_exec(int count, ...)
  *
 */
 
-    int status;
-    pid_t pid;
+    // int status;
+    // pid_t pid;
 
     //pid = fork();
 
