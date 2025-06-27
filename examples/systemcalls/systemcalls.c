@@ -76,22 +76,39 @@ bool do_exec(int count, ...)
  *
 */
 
-    // int status;
+    int status;
     pid_t pid;
-    pid = fork();
-    if(pid_t == -1)// if fork fails
-    {
-        perror("error: ");
-    }
-    else if(pid_t == 0)// if fork succeeds
-    {
-        printf("fork successfully created child process: \r\n");
 
-        const char * arg = command;
+    pid = fork();
+
+    if(pid == -1)// if fork fails
+    {
+        perror("fork error: ");
+    }
+    else if(pid == 0)// if fork succeeds
+    {
+        //this is the child process
+        printf("fork successfully created child process: %d\r\n", pid);
 
         //execute the new program here
-        execv(command[0], arg)
-
+        int ret = execv(command[0], command);
+        
+        //only run if execv fails
+        if(ret == -1){
+            perror("execv error: ");
+            return 1;
+        }
+        
+    }
+    else{
+        // Parent process
+        printf("Parent: waiting for child (PID %d)...\n", pid);
+        //int ret = waitpid(pid, &status, 0);//wait for the specific child process with PID == pid.
+        int ret = waitpid(pid, &status, 0);//wait for any child in caller’s process group in blocking mode
+        if(ret == -1){
+            perror("wait error: ");
+            return 1;
+        }
     }
 
     va_end(args);
@@ -127,8 +144,6 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
-    execv(command, outputfile);
-    va_end(args);
 
     return true;
 }
