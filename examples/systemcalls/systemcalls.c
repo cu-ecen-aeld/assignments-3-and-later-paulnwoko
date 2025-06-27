@@ -84,6 +84,7 @@ bool do_exec(int count, ...)
     if(pid == -1)// if fork fails
     {
         perror("fork error: ");
+        return 1;
     }
     else if(pid == 0)// if fork succeeds
     {
