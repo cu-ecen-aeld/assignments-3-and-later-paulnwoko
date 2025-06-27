@@ -64,7 +64,7 @@ bool do_exec(int count, ...)
     command[count] = NULL;
     // this line is to avoid a compile warning before your implementation is complete
     // and may be removed
-    command[count] = command[count];
+    //command[count] = command[count];
 
 /*
  * TODO:
@@ -77,10 +77,22 @@ bool do_exec(int count, ...)
 */
 
     // int status;
-    // pid_t pid;
+    pid_t pid;
+    pid = fork();
+    if(pid_t == -1)// if fork fails
+    {
+        perror("error: ");
+    }
+    else if(pid_t == 0)// if fork succeeds
+    {
+        printf("fork successfully created child process: \r\n");
 
-    //pid = fork();
+        const char * arg = command;
 
+        //execute the new program here
+        execv(command[0], arg)
+
+    }
 
     va_end(args);
 
@@ -115,7 +127,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *   The rest of the behaviour is same as do_exec()
  *
 */
-
+    execv(command, outputfile);
     va_end(args);
 
     return true;
