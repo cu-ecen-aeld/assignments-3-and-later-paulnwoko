@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <unistd.h>
+
 
 bool do_system(const char *command);
 
