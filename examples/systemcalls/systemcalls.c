@@ -153,5 +153,65 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
  *
 */
 
-    return true;
+// to redirect stdout to a file during an execv() call, 
+// you'll need to do it in the child process before calling execv()
+
+   int status;
+    pid_t pid;
+
+    pid = fork();
+
+    if(pid == -1)// if fork fails
+    {
+        perror("fork error: ");
+        return false;
+    }
+    else if(pid == 0)// if fork succeeds
+    {
+        //child process
+        printf("fork successfully created child process: %d\r\n", pid);
+
+	// open a file
+	int fd = open(outputfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+	if(fd < 0){
+	  perror("failed to open file: ");
+          exit(EXIT_FAILURE);//Graceful termination
+	}	
+	//redirect stardout to the file
+	if (dup2(fd, STDOUT_FILENO) < 0){
+	   perror("dup2 error: ");
+	   close(fd);
+	   exit(EXIT_FAILURE);
+	   //abort(); //Used to signal logic bugs, assertion failures, or "this should never happen" situations
+	}
+        close(fd);//close file descriptor
+        
+        //execute the new program here
+        int ret = execv(command[0], command);
+        
+        //only run if execv fails
+        if(ret == -1){
+            perror("execv error: ");
+            exit(EXIT_FAILURE);//exit with failure
+            //return false;
+        }
+        
+    }
+    
+    // Parent process
+    printf("Parent: waiting for child (PID %d)...\n", pid);
+    //int ret = waitpid(pid, &status, 0);//wait for the specific child process with PID == pid.
+    int ret = waitpid(pid, &status, 0);//wait for any child in caller’s process group in blocking mode
+    if(ret == -1){
+       perror("wait error: ");
+       return false;
+    }     
+
+    //check if child executed and exited successfully
+    if(WIFEXITED(status) && WEXITSTATUS(status) == 0){
+       	return true;// successfully exited
+    }else{
+       	return false;//
+    }
+//    return true;
 }
