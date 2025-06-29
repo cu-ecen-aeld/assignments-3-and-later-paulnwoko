@@ -31,9 +31,9 @@ bool do_system(const char *cmd)
         printf("Success \r\n");
         return true;
     }
-
     // Command failed or exited abnormally
-    return false;
+    else
+    	return false;
     //return true;
 }
 
@@ -176,7 +176,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
 	if(fd < 0){
 	  perror("failed to open file: ");
           exit(EXIT_FAILURE);//Graceful termination
-	}	
+	}
 	//redirect stardout to the file
 	if (dup2(fd, STDOUT_FILENO) < 0){
 	   perror("dup2 error: ");
@@ -205,7 +205,7 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     if(ret == -1){
        perror("wait error: ");
        return false;
-    }     
+    }
 
     //check if child executed and exited successfully
     if(WIFEXITED(status) && WEXITSTATUS(status) == 0){
