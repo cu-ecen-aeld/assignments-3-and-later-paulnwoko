@@ -1,4 +1,3 @@
-#define _XOPEN_SOURCE
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdarg.h>
@@ -8,7 +7,6 @@
 
 #include <sys/types.h>//for wait
 #include <sys/wait.h>//for wait
-
 
 bool do_system(const char *command);
 

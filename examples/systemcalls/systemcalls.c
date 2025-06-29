@@ -84,7 +84,7 @@ bool do_exec(int count, ...)
     if(pid == -1)// if fork fails
     {
         perror("fork error: ");
-        return 1;
+        return false;
     }
     else if(pid == 0)// if fork succeeds
     {
@@ -97,24 +97,31 @@ bool do_exec(int count, ...)
         //only run if execv fails
         if(ret == -1){
             perror("execv error: ");
-            return 1;
+            exit(EXIT_FAILURE);//exit with failure
+            //return false;
         }
         
     }
-    else{
-        // Parent process
-        printf("Parent: waiting for child (PID %d)...\n", pid);
-        //int ret = waitpid(pid, &status, 0);//wait for the specific child process with PID == pid.
-        int ret = waitpid(pid, &status, 0);//wait for any child in caller’s process group in blocking mode
-        if(ret == -1){
-            perror("wait error: ");
-            return 1;
-        }
+    
+    // Parent process
+    printf("Parent: waiting for child (PID %d)...\n", pid);
+    //int ret = waitpid(pid, &status, 0);//wait for the specific child process with PID == pid.
+    int ret = waitpid(pid, &status, 0);//wait for any child in caller’s process group in blocking mode
+    if(ret == -1){
+       perror("wait error: ");
+       return false;
+    }     
+
+    //check if child executed and exited successfully
+    if(WIFEXITED(status) && WEXITSTATUS(status) == 0){
+       	return true;// successfully exited
+    }else{
+       	return false;//
     }
 
     va_end(args);
 
-    return true;
+//    return true;
 }
 
 /**
