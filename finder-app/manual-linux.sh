@@ -35,6 +35,21 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     git checkout ${KERNEL_VERSION}
 
     # TODO: Add your kernel build steps here
+    #install build toolsif not already installed - see Installing crosstool-NG in page 21 of the Mastering_Embedded_Linux_Programming_ElectroVolt.ir_.pdf
+    #sudo apt-get install automake bison chrpath flex g++ git gperf gawk libexpat1-dev libncurses5-dev libsdl1.2-dev libtool python2.7-dev texinfo
+
+    #clean kernel build tree removing .config file with any existing configurations
+    make ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- mrproper
+    #defconfig build: setup defconfig to configure for our virt: arm dev board we will simulate in qemu
+    make ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- deconfig
+    #Build vmlinux - kernel image for booting with qemu
+    make -j12 ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- all
+    #build the module and device tree
+    make -j12 ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- modules #build kernel module
+    make -j12 ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- dtbs #build the device tree
+    # make ARCH=arm multi_v7_defconfig
+    # make ARCH=arm menuconfig
+    
 fi
 
 echo "Adding the Image in outdir"
