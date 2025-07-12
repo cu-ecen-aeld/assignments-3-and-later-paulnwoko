@@ -9,7 +9,7 @@ set -u
 OUTDIR=/media/usb-pc/af3ef38d-99d4-41f8-a8eb-fe8d7dd87fc3/\$usb-pc/coursera/
 # OUTDIR=/media/usb-pc/6416-423B
 KERNEL_REPO=git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
-# KERNEL_REPO=git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git #https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+# KERNEL_REPO=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
 KERNEL_VERSION=v5.15.163
 BUSYBOX_VERSION=1_33_1
 FINDER_APP_DIR=$(realpath $(dirname $0))
@@ -104,10 +104,22 @@ sudo mknod -m 666 ${OUTDIR}rootfs/dev/null c 1 3
 sudo mknod -m 666 ${OUTDIR}rootfs/dev/console c 1 5
 
 # TODO: Clean and build the writer utility
+cd ${FINDER_APP_DIR}
+make clean
+make CROSS_COMPILE=${CROSS_COMPILE}
 
 # TODO: Copy the finder related scripts and executables to the /home directory
 # on the target rootfs
+cd ${OUTDIR}/rootfs
+cp ${FINDER_APP_DIR}/writer ${OUTDIR}/rootfs/home/
+cp ${FINDER_APP_DIR}/writer.sh ${OUTDIR}/rootfs/home/
+cp ${FINDER_APP_DIR}/finder.sh ${OUTDIR}/rootfs/home/
+cp ${FINDER_APP_DIR}/finder-test.sh ${OUTDIR}/rootfs/home/
+cp ${FINDER_APP_DIR}/manuautorun-qemu.sh ${OUTDIR}/rootfs/home/
+
+cp -r ${FINDER_APP_DIR}/conf/ ${OUTDIR}/rootfs/home/
 
 # TODO: Chown the root directory
+sudo chown -R root:root ${OUTDIR}/rootfs
 
 # TODO: Create initramfs.cpio.gz
