@@ -5,9 +5,12 @@
 set -e
 set -u
 
-OUTDIR=/tmp/aeld
+# OUTDIR=/tmp/aeld
+OUTDIR=/media/usb-pc/af3ef38d-99d4-41f8-a8eb-fe8d7dd87fc3/\$usb-pc/coursera/
+# OUTDIR=/media/usb-pc/6416-423B
 KERNEL_REPO=git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
-KERNEL_VERSION=v5.1.10
+# KERNEL_REPO=git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git #https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
+KERNEL_VERSION=v5.15.163
 BUSYBOX_VERSION=1_33_1
 FINDER_APP_DIR=$(realpath $(dirname $0))
 ARCH=arm64
@@ -41,14 +44,12 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     #clean kernel build tree removing .config file with any existing configurations
     make ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- mrproper
     #defconfig build: setup defconfig to configure for our virt: arm dev board we will simulate in qemu
-    make ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- deconfig
+    make ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- defconfig
     #Build vmlinux - kernel image for booting with qemu
-    make -j12 ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- all
+    make ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- all
     #build the module and device tree
-    make -j12 ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- modules #build kernel module
-    make -j12 ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- dtbs #build the device tree
-    # make ARCH=arm multi_v7_defconfig
-    # make ARCH=arm menuconfig
+    make -j$10 ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- modules #build kernel module
+    make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- dtbs #build the device tree
     
 fi
 
@@ -63,6 +64,12 @@ then
 fi
 
 # TODO: Create necessary base directories
+mkdir -p ${OUTDIR}/rootfs
+cd ${OUTDIR}/rootfs
+mkdir -p bin dev etc home lib lib64 proc sbin sys tmp usr var
+mkdir -p usr/bin usr/lib usr/sbin
+mkdir -p var/log
+
 
 cd "$OUTDIR"
 if [ ! -d "${OUTDIR}/busybox" ]
