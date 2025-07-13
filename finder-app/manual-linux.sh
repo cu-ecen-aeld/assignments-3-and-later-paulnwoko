@@ -7,7 +7,6 @@ set -u
 
 # OUTDIR=/tmp/aeld
 OUTDIR=/media/usb-pc/af3ef38d-99d4-41f8-a8eb-fe8d7dd87fc3/
-# OUTDIR=/media/usb-pc/6416-423B
 KERNEL_REPO=git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
 # KERNEL_REPO=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
 KERNEL_VERSION=v5.15.163
@@ -91,6 +90,7 @@ make ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE}
 make CONFIG_PREFIX=$(OUTDIR)/rootfs ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} install #copy busybox and create all the symlinks for us
 
 echo "Library dependencies"
+cd ${OUTDIR}/rootfs
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "program interpreter"
 ${CROSS_COMPILE}readelf -a bin/busybox | grep "Shared library"
 
@@ -117,9 +117,8 @@ cd ${OUTDIR}/rootfs
 cp ${FINDER_APP_DIR}/writer ${OUTDIR}/rootfs/home/
 cp ${FINDER_APP_DIR}/writer.sh ${OUTDIR}/rootfs/home/
 cp ${FINDER_APP_DIR}/finder.sh ${OUTDIR}/rootfs/home/
-cp ${FINDER_APP_DIR}/finder-test.sh ${OUTDIR}/rootfs/home/
-cp ${FINDER_APP_DIR}/manuautorun-qemu.sh ${OUTDIR}/rootfs/home/
-
+cp ${FINDER_APP_DIR}/finder-test.sh ${OUTDIR}/rootfs/home/  #Modify the finder-test.sh script to reference conf/assignment.txt instead of ../conf/assignment.txt.
+cp ${FINDER_APP_DIR}/autorun-qemu.sh ${OUTDIR}/rootfs/home/
 cp -r ${FINDER_APP_DIR}/conf/ ${OUTDIR}/rootfs/home/
 
 # TODO: Chown the root directory
@@ -128,4 +127,4 @@ sudo chown -R root:root ${OUTDIR}/rootfs
 # TODO: Create initramfs.cpio.gz
 cd ${OUTDIR}/rootfs
 find . | cpio -H newc -ov --owner root:root > ${OUTDIR}/initramfs.cpio
-gzip -f initramfs.cpio
+gzip -f ${OUTDIR}/initramfs.cpio
