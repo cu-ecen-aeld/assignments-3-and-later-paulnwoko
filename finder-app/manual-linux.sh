@@ -6,7 +6,7 @@ set -e
 set -u
 
 # OUTDIR=/tmp/aeld
-OUTDIR=/media/usb-pc/af3ef38d-99d4-41f8-a8eb-fe8d7dd87fc3/\$usb-pc/coursera/
+OUTDIR=/media/usb-pc/af3ef38d-99d4-41f8-a8eb-fe8d7dd87fc3/
 # OUTDIR=/media/usb-pc/6416-423B
 KERNEL_REPO=git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
 # KERNEL_REPO=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
@@ -41,19 +41,22 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     #install build toolsif not already installed - see Installing crosstool-NG in page 21 of the Mastering_Embedded_Linux_Programming_ElectroVolt.ir_.pdf
     #sudo apt-get install automake bison chrpath flex g++ git gperf gawk libexpat1-dev libncurses5-dev libsdl1.2-dev libtool python2.7-dev texinfo
 
+    #create seperate build directory
+    BUILD_DIR='/media/usb-pc/af3ef38d-99d4-41f8-a8eb-fe8d7dd87fc3/linux-build/'
     #clean kernel build tree removing .config file with any existing configurations
-    make ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- mrproper
+    make -j$10 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- mrproper
     #defconfig build: setup defconfig to configure for our virt: arm dev board we will simulate in qemu
-    make ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- defconfig
+    make -j$10 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- defconfig
     #Build vmlinux - kernel image for booting with qemu
-    make ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- all
+    make -j$10 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- all
     #build the module and device tree
-    make -j$10 ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- modules #build kernel module
-    make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- dtbs #build the device tree
+    make -j$10 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- modules #build kernel module
+    make -j$(nproc-6) 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- dtbs #build the device tree
     
 fi
 
 echo "Adding the Image in outdir"
+cp ${OUTDIR}/linux-build/arch/${ARCH}/boot/Image ${OUTDIR}/Image
 
 echo "Creating the staging directory for the root filesystem"
 cd "$OUTDIR"
@@ -123,3 +126,6 @@ cp -r ${FINDER_APP_DIR}/conf/ ${OUTDIR}/rootfs/home/
 sudo chown -R root:root ${OUTDIR}/rootfs
 
 # TODO: Create initramfs.cpio.gz
+cd ${OUTDIR}/rootfs
+find . | cpio -H newc -ov --owner root:root > ${OUTDIR}/initramfs.cpio
+gzip -f initramfs.cpio
