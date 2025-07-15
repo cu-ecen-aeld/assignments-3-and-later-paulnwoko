@@ -6,7 +6,8 @@ set -e
 set -u
 
 # OUTDIR=/tmp/aeld
-OUTDIR=/media/usb-pc/af3ef38d-99d4-41f8-a8eb-fe8d7dd87fc3/
+OUTDIR=/media/usb-pc/e66624f5-2194-4839-9941-4897c6e7912c
+#OUTDIR=/media/usb-pc/af3ef38d-99d4-41f8-a8eb-fe8d7dd87fc3/
 KERNEL_REPO=git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
 # KERNEL_REPO=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
 KERNEL_VERSION=v5.15.163
@@ -43,13 +44,13 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     #create seperate build directory
     BUILD_DIR='/media/usb-pc/af3ef38d-99d4-41f8-a8eb-fe8d7dd87fc3/linux-build/'
     #clean kernel build tree removing .config file with any existing configurations
-    make -j$8 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- mrproper
+    make -j8 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- mrproper
     #defconfig build: setup defconfig to configure for our virt: arm dev board we will simulate in qemu
-    make -j$8 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- defconfig
+    make -j8 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- defconfig
     #Build vmlinux - kernel image for booting with qemu
-    make -j$8 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- all
+    make -j8 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- all
     #build the module and device tree
-    make -j$8 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- modules #build kernel module
+    make -j8 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- modules #build kernel module
     make -j$(nproc-8) 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- dtbs #build the device tree
     
 fi
