@@ -6,10 +6,8 @@ set -e
 set -u
 
 # OUTDIR=/tmp/aeld
-OUTDIR=/media/usb-pc/e66624f5-2194-4839-9941-4897c6e7912c
-#OUTDIR=/media/usb-pc/af3ef38d-99d4-41f8-a8eb-fe8d7dd87fc3/
+OUTDIR=/media/usb-pc/cc2986ac-1789-4375-ad4a-b28d7804e953/coursera/qemu
 KERNEL_REPO=git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
-# KERNEL_REPO=https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
 KERNEL_VERSION=v5.15.163
 BUSYBOX_VERSION=1_33_1
 FINDER_APP_DIR=$(realpath $(dirname $0))
