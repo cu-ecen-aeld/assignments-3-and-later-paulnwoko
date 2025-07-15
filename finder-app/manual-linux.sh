@@ -40,7 +40,7 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     #sudo apt-get install automake bison chrpath flex g++ git gperf gawk libexpat1-dev libncurses5-dev libsdl1.2-dev libtool python2.7-dev texinfo
 
     #create seperate build directory
-    BUILD_DIR='/media/usb-pc/af3ef38d-99d4-41f8-a8eb-fe8d7dd87fc3/linux-build/'
+    BUILD_DIR='/media/usb-pc/cc2986ac-1789-4375-ad4a-b28d7804e953/coursera/qemu/build/linux-build/'
     #clean kernel build tree removing .config file with any existing configurations
     make -j8 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- mrproper
     #defconfig build: setup defconfig to configure for our virt: arm dev board we will simulate in qemu
