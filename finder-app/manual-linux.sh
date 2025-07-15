@@ -40,7 +40,7 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     #sudo apt-get install automake bison chrpath flex g++ git gperf gawk libexpat1-dev libncurses5-dev libsdl1.2-dev libtool python2.7-dev texinfo
 
     #create seperate build directory
-    BUILD_DIR='/media/usb-pc/cc2986ac-1789-4375-ad4a-b28d7804e953/coursera/qemu/build/linux-build/'
+    BUILD_DIR='/media/usb-pc/6b8bfb3b-b442-41da-92e8-a91386a2a0b7/linux-build'
     #clean kernel build tree removing .config file with any existing configurations
     make -j8 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- mrproper
     #defconfig build: setup defconfig to configure for our virt: arm dev board we will simulate in qemu
@@ -49,12 +49,12 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     make -j8 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- all
     #build the module and device tree
     make -j8 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- modules #build kernel module
-    make -j$(nproc-8) 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- dtbs #build the device tree
+    make -j$(nproc-7) 0=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- dtbs #build the device tree
     
 fi
 
 echo "Adding the Image in outdir"
-cp ${OUTDIR}/linux-build/arch/${ARCH}/boot/Image ${OUTDIR}/Image
+cp ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ${OUTDIR}/Image
 
 echo "Creating the staging directory for the root filesystem"
 cd "$OUTDIR"
