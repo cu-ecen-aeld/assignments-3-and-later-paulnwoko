@@ -41,20 +41,20 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
 
     #create seperate build directory
     BUILD_DIR=/media/usb-pc/cc2986ac-1789-4375-ad4a-b28d7804e953/coursera/qemu-assignment/linux-build/
-    #clean kernel build tree removing .config file with any existing configurations
-    make -j8 O=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- mrproper
-    #defconfig build: setup defconfig to configure for our virt: arm dev board we will simulate in qemu
-    make -j8 O=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- defconfig
-    #Build vmlinux - kernel image for booting with qemu
-    make -j8 O=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- all
-    #build the module and device tree
-    make -j8 O=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- modules #build kernel module
-    make -j$(nproc-7) O=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- dtbs #build the device tree
+    # #clean kernel build tree removing .config file with any existing configurations
+    # make -j8 O=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- mrproper
+    # #defconfig build: setup defconfig to configure for our virt: arm dev board we will simulate in qemu
+    # make -j8 O=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- defconfig
+    # #Build vmlinux - kernel image for booting with qemu
+    # make -j8 O=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- all
+    # #build the module and device tree
+    # make -j8 O=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- modules #build kernel module
+    # make -j$(nproc-7) O=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- dtbs #build the device tree
     
 fi
 
 echo "Adding the Image in outdir"
-cp ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ${OUTDIR}/Image
+cp ${OUTDIR}/linux-build/arch/${ARCH}/boot/Image ${OUTDIR}/Image
 
 echo "Creating the staging directory for the root filesystem"
 cd "$OUTDIR"
@@ -87,7 +87,7 @@ fi
 
 # TODO: Make and install busybox
 make -j4 ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE}
-make -j4 CONFIG_PREFIX={$OUTDIR}/rootfs ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} install #copy busybox and create all the symlinks for us
+make -j4 CONFIG_PREFIX=${$OUTDIR}/rootfs ARCH=${ARCH} CROSS_COMPILE=${CROSS_COMPILE} install #copy busybox and create all the symlinks for us
 
 cd ${OUTDIR}/rootfs
 
