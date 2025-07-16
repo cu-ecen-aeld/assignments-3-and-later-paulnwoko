@@ -104,8 +104,8 @@ cp -a ${SYSROOT}/lib64/libm.so.6 ${OUTDIR}/rootfs/lib64/
 cp -a ${SYSROOT}/lib64/libresolv.so.2 ${OUTDIR}/rootfs/lib64/
 
 # TODO: Make device nodes
-sudo mknod -m 666 ${OUTDIR}rootfs/dev/null c 1 3
-sudo mknod -m 666 ${OUTDIR}rootfs/dev/console c 1 5
+sudo mknod -m 666 ${OUTDIR}/rootfs/dev/null c 1 3
+sudo mknod -m 666 ${OUTDIR}/rootfs/dev/console c 1 5
 
 # TODO: Clean and build the writer utility
 cd ${FINDER_APP_DIR}
