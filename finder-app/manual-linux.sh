@@ -6,7 +6,7 @@ set -e
 set -u
 
 # OUTDIR=/tmp/aeld
-OUTDIR=/media/usb-pc/cc2986ac-1789-4375-ad4a-b28d7804e953/coursera/qemu-assignment
+OUTDIR=/media/usbpc/cc2986ac-1789-4375-ad4a-b28d7804e953/coursera/qemu-assignment
 KERNEL_REPO=git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
 KERNEL_VERSION=v5.15.163
 BUSYBOX_VERSION=1_33_1
