@@ -1,4 +1,7 @@
-#!/bin/bash
+#!/bin/sh
+# buzybox can oly run scripts with valid shebang like #!/bin/sh 
+# Only #!/bin/bash in a full blown terminal/shell environment like Ubuntu or Debian user shell.
+
 
 #input varriables
 FILESDIR=$1
