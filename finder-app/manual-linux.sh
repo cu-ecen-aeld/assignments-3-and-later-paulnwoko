@@ -6,7 +6,8 @@ set -e
 set -u
 
 # OUTDIR=/tmp/aeld
-OUTDIR=/media/usbpc/cc2986ac-1789-4375-ad4a-b28d7804e953/coursera/qemu-assignment
+OUTDIR=/media/usbpc/38013a61-fe9f-4592-96ac-12aaa52dbc26/coursera/qemu-assignment  #38013a61-fe9f-4592-96ac-12aaa52dbc26   cc2986ac-1789-4375-ad4a-b28d7804e953
+#OUTDIR=/media/usbpc/dbbe4b16-ed55-4efa-b5e3-a57667b5a5ca/aesd
 KERNEL_REPO=git://git.kernel.org/pub/scm/linux/kernel/git/stable/linux-stable.git
 KERNEL_VERSION=v5.15.163
 BUSYBOX_VERSION=1_33_1
@@ -40,14 +41,15 @@ if [ ! -e ${OUTDIR}/linux-stable/arch/${ARCH}/boot/Image ]; then
     #sudo apt-get install automake bison chrpath flex g++ git gperf gawk libexpat1-dev libncurses5-dev libsdl1.2-dev libtool python2.7-dev texinfo
 
     #create seperate build directory
-    BUILD_DIR=/media/usb-pc/cc2986ac-1789-4375-ad4a-b28d7804e953/coursera/qemu-assignment/linux-build/
+    BUILD_DIR=/media/usb-pc/38013a61-fe9f-4592-96ac-12aaa52dbc26/coursera/qemu-assignment/linux-build/
+    #BUILD_DIR=/media/usbpc/dbbe4b16-ed55-4efa-b5e3-a57667b5a5ca/aesd/linux-build/
     #clean kernel build tree removing .config file with any existing configurations
     # make -j8 O=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- mrproper
-    # #defconfig build: setup defconfig to configure for our virt: arm dev board we will simulate in qemu
+    #defconfig build: setup defconfig to configure for our virt: arm dev board we will simulate in qemu
     # make -j8 O=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- defconfig
-    # # Build vmlinux - kernel image for booting with qemu
+    #Build vmlinux - kernel image for booting with qemu
     # make -j10 O=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- all
-    # #build the module and device tree
+    #build the module and device tree
     # make -j10 O=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- modules #build kernel module
     # make -j$(nproc-7) O=${BUILD_DIR} ARCH=arm64 CROSS_COMPILE=aarch64-none-linux-gnu- dtbs #build the device tree
     
