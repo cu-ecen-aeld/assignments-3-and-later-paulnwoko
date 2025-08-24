@@ -18,18 +18,18 @@ void* threadfunc(void* thread_param)
     thread_func_args->thread_complete_success = false;
     usleep((thread_func_args->wait_to_obtain_ms)*1000);
 
-    int mutex_state = pthread_mutex_lock(thread_func_args->mutex);
-	if (mutex_state != 0)
+    int rc = pthread_mutex_lock(thread_func_args->mutex);
+	if (rc != 0)
     {
 		printf("Mutex Lock failed");
 		return thread_param;
 	}	
 	else{
-            mutex_state = 0;
+            rc = 0;
             usleep((thread_func_args->wait_to_release_ms)*1000);
             
-            int mutex_state = pthread_mutex_unlock(thread_func_args->mutex);
-		    if (mutex_state == 0){
+            int rc = pthread_mutex_unlock(thread_func_args->mutex);
+		    if (rc == 0){
 			    thread_func_args->thread_complete_success = true;
 		    }
 	}
@@ -54,8 +54,8 @@ bool start_thread_obtaining_mutex(pthread_t *thread, pthread_mutex_t *mutex,int 
     thread_data->thread_complete_success = false;
 	thread_data->mutex = mutex;
     	
-    int thread_status = pthread_create(thread,NULL,threadfunc,thread_data);
-    if (thread_status != 0){
+    int rc = pthread_create(thread,NULL,threadfunc,thread_data);
+    if (rc != 0){
     	free(thread_data);
     	return false;
     }
