@@ -134,6 +134,7 @@ int main(int argc, char *argv[])
                         break;
                     }
                     fwrite(buffer, 1, bytes_rcv, fp);
+                    fclose(fp);
                 }
 
         }       
