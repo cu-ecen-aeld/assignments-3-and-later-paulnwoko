@@ -61,6 +61,11 @@ int main(int argc, char *argv[])
     //Opens a stream socket bound to port 9000, failing and returning -1 if any of the socket connection steps fail.
     // int sfd, cfd;
     struct sockaddr_in server_addr, client_addr;
+    char buffer[1024];
+
+    //open connection to syslog
+    openlog("TCP Server(aesdsocket)", LOG_PID|LOG_CONS, LOG_USER );
+    syslog(LOG_INFO, "Starting TCP server on port %d", PORT);
 
     //catch ctrl+c and signterm for graceful shutdown
     // signal(SIGINT, handle_sigint);
@@ -70,6 +75,7 @@ int main(int argc, char *argv[])
     sfd = socket(AF_INET, SOCK_STREAM, 0);
     if(sfd == -1){
         perror("socket failed!");
+        // syslog(LOG_ERR, "Socket creation failed: %s" strerror(errno));
         return -1;
     }
 
@@ -82,6 +88,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    //configure address
     memset(&server_addr, 0, sizeof(server_addr)); //initiatlizes the struct with 0 to avoide garbage data
     server_addr.sin_family = AF_INET; //IPv4
     server_addr.sin_addr.s_addr = INADDR_ANY; //listen on all network interfaces - mordern/common
