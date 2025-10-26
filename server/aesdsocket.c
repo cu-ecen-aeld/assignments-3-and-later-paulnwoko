@@ -16,22 +16,9 @@
 #include <unistd.h>
 
 #define PORT 9000
-//#define INADDR_ANY 0.0.0.0  // listen to all interfaces
 #define LISTEN_BACKLOG 10   //defines how may pending connections can queue before they are refused
-
-
-
-//d. Logs message to the syslog “Accepted connection from xxx” where XXXX is the IP address of the connected client. 
-
+#define FILE_PATH "/var/tmp/aesdsocketdata"
 /*
-     e. Receives data over the connection and appends to file /var/tmp/aesdsocketdata, creating this file if it doesn’t exist.
-
-    Your implementation should use a newline to separate data packets received.  In other words a packet is considered complete when a newline character is found in the input receive stream, and each newline should result in an append to the /var/tmp/aesdsocketdata file.
-
-    You may assume the data stream does not include null characters (therefore can be processed using string handling functions).
-
-    You may assume the length of the packet will be shorter than the available heap size.  In other words, as long as you handle malloc() associated failures with error messages you may discard associated over-length packets.
-
      f. Returns the full content of /var/tmp/aesdsocketdata to the client as soon as the received data packet completes.
 
     You may assume the total size of all packets sent (and therefore size of /var/tmp/aesdsocketdata) will be less than the size of the root filesystem, however you may not assume this total size of all packets sent will be less than the size of the available RAM for the process heap.
@@ -79,7 +66,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    //use the setsocketopt() to allow address/port reuse, setting timeout, enablingi keepalive adjusting buffer sizes etc
+    //use the setsocketopt() to allow address/port reuse, setting timeout, enabling keepalive adjusting buffer sizes etc
     int opt = 1;
     if(setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
     {
@@ -123,7 +110,35 @@ int main(int argc, char *argv[])
             close(sfd);
             break;
         }
-        else printf("Accepting connection...\n");
+        else {
+                char *client_ip = inet_ntoa(client_addr.sin_addr);
+                int client_port = ntohs(client_addr.sin_port);
+                printf("Accepting connection...\n");
+                syslog(LOG_INFO, "Accepted connection from %s:%d", client_ip, client_port);
+
+                //Receives data over the connection and appends to file /var/tmp/aesdsocketdata, creating this file if it doesn’t exist.
+                //Your implementation should use a newline to separate data packets received.  In other words a packet is considered complete when a newline character is found in the input receive stream, and each newline should result in an append to the /var/tmp/aesdsocketdata file.
+                // You may assume the data stream does not include null characters (therefore can be processed using string handling functions).
+                // You may assume the length of the packet will be shorter than the available heap size.  In other words, as long as you handle malloc() associated failures with error messages you may discard associated over-length packets.
+                int bytes_rcv = recv(cfd, buffer, sizeof(buffer), 0);
+                if(bytes_rcv > 0)
+                {
+                    buffer[bytes_rcv] = '\0'; //null terminate it
+                    syslog(LOG_INFO, "Recieved %s from %s:%d", buffer, client_ip, client_port);
+                    // send(cfd, buffer, bytes_rcv, 0); //echo recieved data
+
+                    FILE *fp = fopen(FILE_PATH, "a+"); //open in append rd wr mode 
+                    if(fp == NULL)
+                    {
+                        perror("failed to open file");
+                        break;
+                    }
+                    fwrite(buffer, 1, bytes_rcv, fp);
+                }
+
+        }       
+
+
     }
 
     // pause();//waiting for connection from client
