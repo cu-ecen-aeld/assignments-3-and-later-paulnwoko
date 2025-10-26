@@ -112,21 +112,26 @@ int main(int argc, char *argv[])
     }
     else printf("listening for connection...\n");
 
-    //accept an incomming connection
-    //socklen_t client_len = sizeof(client_addr);
-    cfd = accept(sfd, (struct sockaddr *)&client_addr, (socklen_t *) sizeof(client_addr));
-    if(cfd == -1)
-    {
-        perror("Accept failed!");
-        close(sfd);
-        return -1;
-    }
-    else printf("Accepting connection...\n");
-
     while(1)
-        pause();//waiting for connection from client
+    {
+        //accept an incomming connection
+        //socklen_t client_len = sizeof(client_addr);
+        cfd = accept(sfd, (struct sockaddr *)&client_addr, (socklen_t *) sizeof(client_addr));
+        if(cfd == -1)
+        {
+            perror("Accept failed!");
+            close(sfd);
+            break;
+        }
+        else printf("Accepting connection...\n");
+    }
+
+    // pause();//waiting for connection from client
     
     // close(sfd);
+
+    syslog(LOG_INFO, "Server is shutting down");
+    closelog();
 
     return 0;
 }
