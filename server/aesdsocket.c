@@ -48,7 +48,7 @@ int main(int argc, char *argv[])
     //Opens a stream socket bound to port 9000, failing and returning -1 if any of the socket connection steps fail.
     // int sfd, cfd;
     struct sockaddr_in server_addr, client_addr;
-    char recv_buffer[1024];
+    char recv_buffer[16384]; // 16mb buffer
 
     //open connection to syslog
     openlog("TCP Server(aesdsocket)", LOG_PID|LOG_CONS, LOG_USER );
@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
         {
             char *client_ip = inet_ntoa(client_addr.sin_addr);
             int client_port = ntohs(client_addr.sin_port);
-            printf("Accepting connection...\n");
+            printf("Accepting connection from from %s:%d\n", client_ip, client_port);
             syslog(LOG_INFO, "Accepted connection from %s:%d", client_ip, client_port);
 
             //Receives data over the connection and appends to file /var/tmp/aesdsocketdata, creating this file if it doesn’t exist.
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
             // You may assume the data stream does not include null characters (therefore can be processed using string handling functions).
             // You may assume the length of the packet will be shorter than the available heap size.  In other words, as long as you handle malloc() associated failures with error messages you may discard associated over-length packets.
                 
-            char packet_buffer[4096]; //temporal storage for a complete packet
+            char packet_buffer[1024]; //temporal storage for a complete packet
             size_t packet_pos = 0;
             int no_of_recv_packets = 0; //
             FILE *fd; //file descriptor
