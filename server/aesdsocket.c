@@ -42,7 +42,6 @@ void signal_handler(int sig)
     close(sfd);
     exit(0);
 }
-    
 
 int main(int argc, char *argv[])
 {
@@ -69,13 +68,32 @@ int main(int argc, char *argv[])
 
     //use the setsocketopt() to allow address/port reuse, setting timeout, enabling keepalive adjusting buffer sizes etc
     int opt = 1;
-    setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
+    if(setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt)) <0)
+    {
+        perror("setsocketopt(SO_REUSEPORT) failed");
+        close(sfd);
+        return -1;
+    }
     if(setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
     {
         perror("setsocketopt(SO_REUSEADDR) failed");
         close(sfd);
         return -1;
     }
+
+    // /* 
+    // configure server timeout
+    // */
+    // struct timeval timeout;
+    // timeout.tv_sec = 20;
+    // timeout.tv_usec = 0;
+    // if(setsockopt(sfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
+    // {
+    //     perror("setsocketopt(SO_RCVTIMEO) failed");
+    //     close(sfd);
+    //     return -1;
+    // }
+
 
     //configure address
     memset(&server_addr, 0, sizeof(server_addr)); //initiatlizes the struct with 0 to avoide garbage data
@@ -109,10 +127,9 @@ int main(int argc, char *argv[])
         if(cfd == -1)
         {
             perror("Accept failed!");
-            close(sfd);
-            break;
+            continue;
         }
-        else 
+        //else 
         {
             char *client_ip = inet_ntoa(client_addr.sin_addr);
             int client_port = ntohs(client_addr.sin_port);
@@ -129,45 +146,74 @@ int main(int argc, char *argv[])
             int no_of_recv_packets = 0; //
             FILE *fd; //file descriptor
 
-            size_t bytes_rcv = recv(cfd, recv_buffer, sizeof(recv_buffer), 0);//recieve byte
-            syslog(LOG_INFO, "Recieved %s from %s:%d", recv_buffer, client_ip, client_port);
-            // send(cfd, recv_buffer, bytes_rcv, 0); //echo recieved data 
-            if(bytes_rcv > 0)
+            while(1)
             {
-                for(size_t i = 0; i < bytes_rcv; i++){
-                    packet_buffer[packet_pos++] = recv_buffer[i];//extract packeets
-
-                    //check for newline
-                    if (recv_buffer[i] == '\n')
-                    {
-                        fd = fopen(FILE_PATH, "a+"); //open in append rd wr mode 
-                        if(fd == NULL)
-                        {
-                            perror("failed to open file");
-                            // break;
-                        }
-
-                        //append the complete packet to file
-                        fwrite(packet_buffer, 1, packet_pos, fd);
-                        fflush(fd);// saves data to memory
-                        printf("appended packet %d\n", no_of_recv_packets++);
-
-                        //reset pacct buff for next packet
-                        packet_pos = 0;
-                        memset(packet_buffer, 0, sizeof(packet_buffer));
+                size_t bytes_rcv = recv(cfd, recv_buffer, sizeof(recv_buffer), 0);//recieve byte
+                syslog(LOG_INFO, "Recieved %s from %s:%d", recv_buffer, client_ip, client_port);
+                // send(cfd, recv_buffer, bytes_rcv, 0); //echo recieved data 
+                if (bytes_rcv < 0){
+                    //error or connecction close
+                    if(errno ==EAGAIN || errno == EWOULDBLOCK) //THis errono was set after tieout
+                    { // < 0
+                        printf("Timeout waiting waiting for client %s:%d", client_ip, client_port);
+                        syslog(LOG_INFO, "imeout waiting waiting for client %s:%d", client_ip, client_port);
                     }
+                    // else{ // == 0
+                    //     // perror("remote connection closed");
+                    //     printf("client %s:%d disconneted\n", client_ip, client_port);
+                    // }
+                    break;
                 }
-                bytes_rcv = 0;
-                //send back file content to the client
-                fseek(fd, 0, SEEK_SET);//go to the start of the file
-                char send_buffer[1024];
-                size_t no_of_bytes_read;
-
-                while((no_of_bytes_read = fread(send_buffer, 1, sizeof(send_buffer), fd)) > 0)
+                else if(bytes_rcv == 0)
+                {//remote connection close
+                    printf("client %s:%d disconneted\n", client_ip, client_port);
+                    break;
+                }
+                else if(bytes_rcv > 0)
                 {
-                     send(cfd, send_buffer, no_of_bytes_read, 0);
+                    //recieve all packets
+                    for(size_t i = 0; i < bytes_rcv; i++)
+                    {
+                        packet_buffer[packet_pos++] = recv_buffer[i];//extract each packets
+
+                        //check for newline
+                        if (recv_buffer[i] == '\n')
+                        {
+                            fd = fopen(FILE_PATH, "a+"); //open in append rd wr mode 
+                            if(fd == NULL)
+                            {
+                                perror("failed to open file");
+                                // break;
+                            }
+
+                            //append the complete packet to file
+                            fwrite(packet_buffer, 1, packet_pos, fd);
+                            fflush(fd);// saves data to memory
+                            printf("appended packet %d\n", no_of_recv_packets++);
+
+                            //reset pacct buff for next packet
+                            packet_pos = 0;
+                            memset(packet_buffer, 0, sizeof(packet_buffer));
+                        }
+                    }
+                    // bytes_rcv = 0;//
+                    // //send back file content to the client
+                    fseek(fd, 0, SEEK_SET);//go to the start of the file
+                    char send_buffer[1024];
+                    size_t no_of_bytes_read;
+
+                    while((no_of_bytes_read = fread(send_buffer, 1, sizeof(send_buffer), fd)) > 0)
+                    {
+                        send(cfd, send_buffer, no_of_bytes_read, 0);
+                    }
+                    fclose(fd); //close file
+                    //close client
+                    // if (cfd >= 0)
+                    // {
+                    //     close(cfd);
+                    //     syslog(LOG_INFO, "Closed connection from %s", client_ip);
+                    // }
                 }
-                fclose(fd);       
             }
         }
         // recv_buffer[bytes_rcv] = '\0';
