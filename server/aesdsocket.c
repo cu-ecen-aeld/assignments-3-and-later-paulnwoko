@@ -35,12 +35,13 @@
 // create socket filde descriptors
 int sfd, cfd;
 
-// void handle_sigint(int sig)
-// {
-//     printf("\nRecieved signal %d closing socket and exiting...\n", sig);
-//     close(sfd);
-//     exit(0);
-// }
+void signal_handler(int sig)
+{
+    printf("\nRecieved signal %d closing socket and exiting...\n", sig);
+    syslog(LOG_INFO, "Caught signal, existing");
+    close(sfd);
+    exit(0);
+}
     
 
 int main(int argc, char *argv[])
@@ -48,15 +49,15 @@ int main(int argc, char *argv[])
     //Opens a stream socket bound to port 9000, failing and returning -1 if any of the socket connection steps fail.
     // int sfd, cfd;
     struct sockaddr_in server_addr, client_addr;
-    char buffer[1024];
+    char recv_buffer[1024];
 
     //open connection to syslog
     openlog("TCP Server(aesdsocket)", LOG_PID|LOG_CONS, LOG_USER );
     syslog(LOG_INFO, "Starting TCP server on port %d", PORT);
 
-    //catch ctrl+c and signterm for graceful shutdown
-    // signal(SIGINT, handle_sigint);
-    // signal(SIGTERM, handle_sigint);
+    // catch ctrl+c and signterm for graceful shutdown
+    signal(SIGINT, signal_handler);
+    signal(SIGTERM, signal_handler);
 
     //create socket
     sfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -68,7 +69,8 @@ int main(int argc, char *argv[])
 
     //use the setsocketopt() to allow address/port reuse, setting timeout, enabling keepalive adjusting buffer sizes etc
     int opt = 1;
-    if(setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
+    setsockopt(sfd, SOL_SOCKET, SO_REUSEPORT, &opt, sizeof(opt));
+    if(setsockopt(sfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0)
     {
         perror("setsocketopt(SO_REUSEADDR) failed");
         close(sfd);
@@ -99,53 +101,80 @@ int main(int argc, char *argv[])
     }
     else printf("listening for connection...\n");
 
+    socklen_t client_len = sizeof(client_addr);
     while(1)
     {
         //accept an incomming connection
-        //socklen_t client_len = sizeof(client_addr);
-        cfd = accept(sfd, (struct sockaddr *)&client_addr, (socklen_t *) sizeof(client_addr));
+        cfd = accept(sfd, (struct sockaddr *)&client_addr, &client_len);
         if(cfd == -1)
         {
             perror("Accept failed!");
             close(sfd);
             break;
         }
-        else {
-                char *client_ip = inet_ntoa(client_addr.sin_addr);
-                int client_port = ntohs(client_addr.sin_port);
-                printf("Accepting connection...\n");
-                syslog(LOG_INFO, "Accepted connection from %s:%d", client_ip, client_port);
+        else 
+        {
+            char *client_ip = inet_ntoa(client_addr.sin_addr);
+            int client_port = ntohs(client_addr.sin_port);
+            printf("Accepting connection...\n");
+            syslog(LOG_INFO, "Accepted connection from %s:%d", client_ip, client_port);
 
-                //Receives data over the connection and appends to file /var/tmp/aesdsocketdata, creating this file if it doesn’t exist.
-                //Your implementation should use a newline to separate data packets received.  In other words a packet is considered complete when a newline character is found in the input receive stream, and each newline should result in an append to the /var/tmp/aesdsocketdata file.
-                // You may assume the data stream does not include null characters (therefore can be processed using string handling functions).
-                // You may assume the length of the packet will be shorter than the available heap size.  In other words, as long as you handle malloc() associated failures with error messages you may discard associated over-length packets.
-                int bytes_rcv = recv(cfd, buffer, sizeof(buffer), 0);
-                if(bytes_rcv > 0)
-                {
-                    buffer[bytes_rcv] = '\0'; //null terminate it
-                    syslog(LOG_INFO, "Recieved %s from %s:%d", buffer, client_ip, client_port);
-                    // send(cfd, buffer, bytes_rcv, 0); //echo recieved data
+            //Receives data over the connection and appends to file /var/tmp/aesdsocketdata, creating this file if it doesn’t exist.
+            //Your implementation should use a newline to separate data packets received.  In other words a packet is considered complete when a newline character is found in the input receive stream, and each newline should result in an append to the /var/tmp/aesdsocketdata file.
+            // You may assume the data stream does not include null characters (therefore can be processed using string handling functions).
+            // You may assume the length of the packet will be shorter than the available heap size.  In other words, as long as you handle malloc() associated failures with error messages you may discard associated over-length packets.
+                
+            char packet_buffer[4096]; //temporal storage for a complete packet
+            size_t packet_pos = 0;
+            int no_of_recv_packets = 0; //
+            FILE *fd; //file descriptor
 
-                    FILE *fp = fopen(FILE_PATH, "a+"); //open in append rd wr mode 
-                    if(fp == NULL)
+            size_t bytes_rcv = recv(cfd, recv_buffer, sizeof(recv_buffer), 0);//recieve byte
+            syslog(LOG_INFO, "Recieved %s from %s:%d", recv_buffer, client_ip, client_port);
+            // send(cfd, recv_buffer, bytes_rcv, 0); //echo recieved data 
+            if(bytes_rcv > 0)
+            {
+                for(size_t i = 0; i < bytes_rcv; i++){
+                    packet_buffer[packet_pos++] = recv_buffer[i];//extract packeets
+
+                    //check for newline
+                    if (recv_buffer[i] == '\n')
                     {
-                        perror("failed to open file");
-                        break;
+                        fd = fopen(FILE_PATH, "a+"); //open in append rd wr mode 
+                        if(fd == NULL)
+                        {
+                            perror("failed to open file");
+                            // break;
+                        }
+
+                        //append the complete packet to file
+                        fwrite(packet_buffer, 1, packet_pos, fd);
+                        fflush(fd);// saves data to memory
+                        printf("appended packet %d\n", no_of_recv_packets++);
+
+                        //reset pacct buff for next packet
+                        packet_pos = 0;
+                        memset(packet_buffer, 0, sizeof(packet_buffer));
                     }
-                    fwrite(buffer, 1, bytes_rcv, fp);
-                    fclose(fp);
                 }
+                bytes_rcv = 0;
+                //send back file content to the client
+                fseek(fd, 0, SEEK_SET);//go to the start of the file
+                char send_buffer[1024];
+                size_t no_of_bytes_read;
 
-        }       
-
-
+                while((no_of_bytes_read = fread(send_buffer, 1, sizeof(send_buffer), fd)) > 0)
+                {
+                     send(cfd, send_buffer, no_of_bytes_read, 0);
+                }
+                fclose(fd);       
+            }
+        }
+        // recv_buffer[bytes_rcv] = '\0';
+        // fwrite(recv_buffer, 1, bytes_rcv, fd);
     }
-
     // pause();//waiting for connection from client
-    
     // close(sfd);
-
     syslog(LOG_INFO, "Server is shutting down");
     closelog();
 
