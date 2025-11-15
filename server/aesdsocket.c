@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdbool.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -35,13 +36,35 @@
 // create socket filde descriptors
 int sfd, cfd;
 
+volatile sig_atomic_t quit_requested = 0; //quit flag set by signal handler
 void signal_handler(int sig)
 {
-    printf("\nRecieved signal %d closing socket and exiting...\n", sig);
-    syslog(LOG_INFO, "Caught signal, existing");
-    close(sfd);
-    exit(0);
+    //Do NOT call printf, syslog, close, unlink, or anything complex inside the handler — unsafe inside signals.
+    // printf("\nRecieved signal %d closing socket and exiting...\n", sig);
+    // syslog(LOG_INFO, "Caught signal, exiting");
+    quit_requested = 1;
+    
 }
+
+void shutdown_server_and_clean_up()
+{
+    syslog(LOG_INFO, "Caught signal, exiting");
+    if(cfd != -1) close(cfd);
+    if(sfd != -1) close(sfd);
+
+    //close and delete /var/tmp/aesdsocketdata. 
+    if(unlink(FILE_PATH) == 0){
+        printf("deleted %s\n", FILE_PATH);
+    }
+    else
+    {
+        perror("unlink");
+    }
+
+    closelog();
+    exit(0);//terminate program
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -54,9 +77,17 @@ int main(int argc, char *argv[])
     openlog("TCP Server(aesdsocket)", LOG_PID|LOG_CONS, LOG_USER );
     syslog(LOG_INFO, "Starting TCP server on port %d", PORT);
 
-    // catch ctrl+c and signterm for graceful shutdown
-    signal(SIGINT, signal_handler);
-    signal(SIGTERM, signal_handler);
+    // Register signal handlers catch ctrl+c and signterm for graceful shutdown
+    struct sigaction sa;
+    sa.sa_handler = signal_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;    //do not use SA_RESTART
+
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+
+    // signal(SIGINT, signal_handler);
+    // signal(SIGTERM, signal_handler);
 
     //create socket
     sfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -94,7 +125,6 @@ int main(int argc, char *argv[])
     //     return -1;
     // }
 
-
     //configure address
     memset(&server_addr, 0, sizeof(server_addr)); //initiatlizes the struct with 0 to avoide garbage data
     server_addr.sin_family = AF_INET; //IPv4
@@ -108,7 +138,7 @@ int main(int argc, char *argv[])
         close(sfd);
         return -1;
     }
-    else printf("Socket opened and bound to port %d successfully\n", PORT);
+    else printf("Socket bound to port %d successfully\n", PORT);
 
     //  c. Listens for and accepts a connection
     if(listen(sfd, LISTEN_BACKLOG) == -1)
@@ -120,110 +150,102 @@ int main(int argc, char *argv[])
     else printf("listening for connection...\n");
 
     socklen_t client_len = sizeof(client_addr);
-    while(1)
+    //accept loop
+    while(!quit_requested)
     {
         //accept an incomming connection
         cfd = accept(sfd, (struct sockaddr *)&client_addr, &client_len);
-        if(cfd == -1)
+        if(cfd < 0)
         {
+            if(errno == EINTR && quit_requested)
+                break; //
+            
             perror("Accept failed!");
             continue;
         }
-        //else 
-        {
-            char *client_ip = inet_ntoa(client_addr.sin_addr);
-            int client_port = ntohs(client_addr.sin_port);
-            printf("Accepting connection from from %s:%d\n", client_ip, client_port);
-            syslog(LOG_INFO, "Accepted connection from %s:%d", client_ip, client_port);
+         
+        
+        char *client_ip = inet_ntoa(client_addr.sin_addr);
+        int client_port = ntohs(client_addr.sin_port);
+        printf("Accepting connection from %s:%d\n", client_ip, client_port);
+        syslog(LOG_INFO, "Accepted connection from %s:%d", client_ip, client_port);
 
-            //Receives data over the connection and appends to file /var/tmp/aesdsocketdata, creating this file if it doesn’t exist.
-            //Your implementation should use a newline to separate data packets received.  In other words a packet is considered complete when a newline character is found in the input receive stream, and each newline should result in an append to the /var/tmp/aesdsocketdata file.
-            // You may assume the data stream does not include null characters (therefore can be processed using string handling functions).
-            // You may assume the length of the packet will be shorter than the available heap size.  In other words, as long as you handle malloc() associated failures with error messages you may discard associated over-length packets.
+        //Receives data over the connection and appends to file /var/tmp/aesdsocketdata, creating this file if it doesn’t exist.
+        //Your implementation should use a newline to separate data packets received.  In other words a packet is considered complete when a newline character is found in the input receive stream, and each newline should result in an append to the /var/tmp/aesdsocketdata file.
+        //You may assume the data stream does not include null characters (therefore can be processed using string handling functions).
+        //You may assume the length of the packet will be shorter than the available heap size.  In other words, as long as you handle malloc() associated failures with error messages you may discard associated over-length packets.
                 
-            char packet_buffer[1024]; //temporal storage for a complete packet
-            size_t packet_pos = 0;
-            int no_of_recv_packets = 0; //
-            FILE *fd; //file descriptor
+        char packet_buffer[1024]; //temporal storage for a complete packet
+        size_t packet_pos = 0;
+        int no_of_recv_packets = 0; //
+        FILE *fd; //create file descriptor
 
-            while(1)
+        //recieve loop
+        while(!quit_requested)
+        {
+            ssize_t bytes_rcv = recv(cfd, recv_buffer, sizeof(recv_buffer), 0);//recieve byte
+            syslog(LOG_INFO, "Recieved %s from %s:%d", recv_buffer, client_ip, client_port);
+            // send(cfd, recv_buffer, bytes_rcv, 0); //echo recieved data 
+            if (bytes_rcv < 0){
+                //error or connecction close or termination signal recieved
+                if(errno == EINTR && quit_requested)
+                    break; //
+                    
+                perror("recieve"); 
+                break;
+            }
+            else if(bytes_rcv == 0)//remote connection close
             {
-                size_t bytes_rcv = recv(cfd, recv_buffer, sizeof(recv_buffer), 0);//recieve byte
-                syslog(LOG_INFO, "Recieved %s from %s:%d", recv_buffer, client_ip, client_port);
-                // send(cfd, recv_buffer, bytes_rcv, 0); //echo recieved data 
-                if (bytes_rcv < 0){
-                    //error or connecction close
-                    if(errno ==EAGAIN || errno == EWOULDBLOCK) //THis errono was set after tieout
-                    { // < 0
-                        printf("Timeout waiting waiting for client %s:%d", client_ip, client_port);
-                        syslog(LOG_INFO, "imeout waiting waiting for client %s:%d", client_ip, client_port);
-                    }
-                    // else{ // == 0
-                    //     // perror("remote connection closed");
-                    //     printf("client %s:%d disconneted\n", client_ip, client_port);
-                    // }
-                    break;
-                }
-                else if(bytes_rcv == 0)
-                {//remote connection close
-                    printf("client %s:%d disconneted\n", client_ip, client_port);
-                    break;
-                }
-                else if(bytes_rcv > 0)
+                printf("client %s:%d disconneted\n", client_ip, client_port);
+                syslog(LOG_INFO, "Closed connection from %s:%d", client_ip, client_port);
+                break;
+            }                
+            else if(bytes_rcv > 0)//recieve all packets
+            {
+                for(size_t i = 0; i < bytes_rcv; i++)
                 {
-                    //recieve all packets
-                    for(size_t i = 0; i < bytes_rcv; i++)
-                    {
-                        packet_buffer[packet_pos++] = recv_buffer[i];//extract each packets
+                    packet_buffer[packet_pos++] = recv_buffer[i];//extract each packets
 
-                        //check for newline
-                        if (recv_buffer[i] == '\n')
+                    //check for newline
+                    if (recv_buffer[i] == '\n')
+                    {
+                        fd = fopen(FILE_PATH, "a+"); //open in append rd wr mode 
+                        if(fd == NULL)
                         {
-                            fd = fopen(FILE_PATH, "a+"); //open in append rd wr mode 
-                            if(fd == NULL)
-                            {
-                                perror("failed to open file");
-                                // break;
-                            }
-
-                            //append the complete packet to file
-                            fwrite(packet_buffer, 1, packet_pos, fd);
-                            fflush(fd);// saves data to memory
-                            printf("appended packet %d\n", no_of_recv_packets++);
-
-                            //reset pacct buff for next packet
+                            perror("failed to open file");
                             packet_pos = 0;
-                            memset(packet_buffer, 0, sizeof(packet_buffer));
+                            // break;
                         }
-                    }
-                    // bytes_rcv = 0;//
-                    // //send back file content to the client
-                    fseek(fd, 0, SEEK_SET);//go to the start of the file
-                    char send_buffer[1024];
-                    size_t no_of_bytes_read;
 
-                    while((no_of_bytes_read = fread(send_buffer, 1, sizeof(send_buffer), fd)) > 0)
-                    {
-                        send(cfd, send_buffer, no_of_bytes_read, 0);
+                        //append the complete packet to file
+                        fwrite(packet_buffer, 1, packet_pos, fd);
+                        fflush(fd);// saves data to memory
+                        printf("appended packet %d\n", no_of_recv_packets++);
+
+                        //reset packet buff for next packet
+                        packet_pos = 0;
+                        memset(packet_buffer, 0, sizeof(packet_buffer));
                     }
-                    fclose(fd); //close file
-                    //close client
-                    // if (cfd >= 0)
-                    // {
-                    //     close(cfd);
-                    //     syslog(LOG_INFO, "Closed connection from %s", client_ip);
-                    // }
                 }
+                // bytes_rcv = 0;//
+                // //send back file content to the client
+                fseek(fd, 0, SEEK_SET);//go to the start of the file
+                char send_buffer[1024];
+                size_t no_of_bytes_read;
+
+                while((no_of_bytes_read = fread(send_buffer, 1, sizeof(send_buffer), fd)) > 0)
+                {
+                    send(cfd, send_buffer, no_of_bytes_read, 0);
+                }
+                fclose(fd); //close file
             }
         }
-        // recv_buffer[bytes_rcv] = '\0';
-        // fwrite(recv_buffer, 1, bytes_rcv, fd);
     }
-    // pause();//waiting for connection from client
-    // close(sfd);
-    syslog(LOG_INFO, "Server is shutting down");
-    closelog();
-
-    return 0;
+    //clean up and shutdown server/client connection
+    if (quit_requested == 1)
+    {
+        printf("\nServer is shutting down\n");
+        shutdown_server_and_clean_up();
+        return 0;
+    }
 }
-
