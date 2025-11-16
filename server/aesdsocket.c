@@ -40,9 +40,27 @@ volatile sig_atomic_t quit_requested = 0; //quit flag set by signal handler
 void signal_handler(int sig)
 {
     //Do NOT call printf, syslog, close, unlink, or anything complex inside the handler — unsafe inside signals.
-    // printf("\nRecieved signal %d closing socket and exiting...\n", sig);
-    // syslog(LOG_INFO, "Caught signal, exiting");
     quit_requested = 1;
+    
+}
+
+void install_signal_handlers()
+{
+    // Register signal handlers catch ctrl+c and signterm for graceful shutdown
+    struct sigaction sa;
+    sa.sa_handler = signal_handler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;    //do not use SA_RESTART
+
+    sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+
+    // signal(SIGINT, signal_handler);
+    // signal(SIGTERM, signal_handler);
+}
+
+int setup_tcp_server()
+{
     
 }
 
@@ -68,6 +86,9 @@ void shutdown_server_and_clean_up()
 
 int main(int argc, char *argv[])
 {
+
+    install_signal_handlers();
+
     //Opens a stream socket bound to port 9000, failing and returning -1 if any of the socket connection steps fail.
     // int sfd, cfd;
     struct sockaddr_in server_addr, client_addr;
@@ -76,18 +97,6 @@ int main(int argc, char *argv[])
     //open connection to syslog
     openlog("TCP Server(aesdsocket)", LOG_PID|LOG_CONS, LOG_USER );
     syslog(LOG_INFO, "Starting TCP server on port %d", PORT);
-
-    // Register signal handlers catch ctrl+c and signterm for graceful shutdown
-    struct sigaction sa;
-    sa.sa_handler = signal_handler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0;    //do not use SA_RESTART
-
-    sigaction(SIGINT, &sa, NULL);
-    sigaction(SIGTERM, &sa, NULL);
-
-    // signal(SIGINT, signal_handler);
-    // signal(SIGTERM, signal_handler);
 
     //create socket
     sfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -111,19 +120,6 @@ int main(int argc, char *argv[])
         close(sfd);
         return -1;
     }
-
-    // /* 
-    // configure server timeout
-    // */
-    // struct timeval timeout;
-    // timeout.tv_sec = 20;
-    // timeout.tv_usec = 0;
-    // if(setsockopt(sfd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0)
-    // {
-    //     perror("setsocketopt(SO_RCVTIMEO) failed");
-    //     close(sfd);
-    //     return -1;
-    // }
 
     //configure address
     memset(&server_addr, 0, sizeof(server_addr)); //initiatlizes the struct with 0 to avoide garbage data
