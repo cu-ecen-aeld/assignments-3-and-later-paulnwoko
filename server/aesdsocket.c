@@ -273,10 +273,5 @@ int main(int argc, char *argv[])
         handle_client(cfd, client_ip, client_port);        
     }
     //clean up and shutdown server/client connection
-    if (quit_requested == 1)
-    {
-        printf("\nServer is shutting down\n");
-        shutdown_server_and_clean_up();
-        return 0;
-    }
+    shutdown_server_and_clean_up();
 }
