@@ -109,7 +109,7 @@ int setup_tcp_server_socket()
 }
 
 
-static int process_packets(ssize_t bytes_rcv, char recv_buffer[] )
+static int process_packets(ssize_t bytes_rcv, char recv_buffer[])
 {
     char packet_buffer[1024]; //temporal storage for a complete packet
     size_t packet_pos = 0;
@@ -141,6 +141,7 @@ static int process_packets(ssize_t bytes_rcv, char recv_buffer[] )
             memset(packet_buffer, 0, sizeof(packet_buffer));
         }
     }
+    no_of_recv_packets = 0;
 
     //send back file content to the client
     fseek(fd, 0, SEEK_SET);//go to the start of the file
@@ -234,9 +235,86 @@ void shutdown_server_and_clean_up()
         exit(0);//terminate program
     }
 }
+int daemonize()
+{
+    /*  Fork the process
+        - Parent exits.
+        - Child continues running in the background.
+        - This ensures the daemon is not a process group leader (important for setsid). 
+        */
+    pid_t pid = fork();
+    if (pid < 0) {
+        syslog(LOG_ERR, "fork failed: %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    if (pid > 0) {
+        /* parent exits */
+        exit(EXIT_SUCCESS);
+    }
+
+    /* child continues */
+    /*
+        Create a new session (setsid)
+        - Detaches from terminal
+        - Makes the child become session leader
+        - Creates a new process group
+    */
+    if (setsid() < 0) {
+        syslog(LOG_ERR, "setsid failed: %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    
+    /*
+        Fork again. recommended to prevent the daemon from ever again acquiring a terminal.
+    */
+    pid = fork();
+    if (pid < 0) {
+        syslog(LOG_ERR, "fork failed: %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    if (pid > 0) {
+        /* parent exits */
+        exit(EXIT_SUCCESS);
+    }
+
+    /*
+    set file permission mask
+    Most daemons use umask(0) to allow free file creation.
+    */
+    umask(0);
+
+    /* Change working directory 
+        Usually / so daemon doesn’t block unmounting filesystems.
+    */
+    if (chdir("/") < 0) {
+        syslog(LOG_ERR, "chdir failed: %s", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    /* Close standard file descriptors */
+    close(STDIN_FILENO);
+    close(STDOUT_FILENO);
+    close(STDERR_FILENO);
+
+    // Redirect stdio to /dev/null
+    int fd = open("/dev/null", O_RDWR);
+    dup2(fd, STDIN_FILENO);
+    dup2(fd, STDOUT_FILENO);
+    dup2(fd, STDERR_FILENO);
+
+    openlog("TCP Server(aesdsocket_daemon)", LOG_PID|LOG_CONS, LOG_DAEMON);
+    syslog(LOG_INFO, "Daemon started!");
+}
+
 
 int main(int argc, char *argv[])
 {
+    bool daemon_mode  = false;
+    if ((argc ==2) && (strcmp(argv[1], "-d") == 0))
+    {
+        daemon_mode = true;
+    }
+
     //open connection to syslog
     openlog("TCP Server(aesdsocket)", LOG_PID|LOG_CONS, LOG_USER ); 
     
@@ -247,6 +325,8 @@ int main(int argc, char *argv[])
 
     syslog(LOG_INFO, "Starting TCP server on port %d", PORT);
     if(setup_tcp_server_socket() < 0) shutdown_server_and_clean_up();
+
+    if (daemon_mode == true) daemonize();
 
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
