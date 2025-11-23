@@ -6,7 +6,7 @@ CFLAGS ?= -Wall -Wextra -g
 SRC := aesdsocket.c
 TARGET := aesdsocket
 OUTDIR := server
-OUT := $(OUTDIR)/$(TARGET)
+OUT := $(TARGET)
 
 # Default target
 all: $(OUT)

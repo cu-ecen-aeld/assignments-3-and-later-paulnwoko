@@ -34,7 +34,7 @@
 int sfd, cfd;
 
 volatile sig_atomic_t quit_requested = 0; //quit flag set by signal handler
-void signal_handler(int sig)
+void signal_handler()
 {
     //Do NOT call printf, syslog, close, unlink, or anything complex inside the handler — unsafe inside signals.
     quit_requested = 1;
@@ -106,18 +106,20 @@ int setup_tcp_server_socket()
         return -1;
     }
     else printf("listening for connection...\n");
+
+    return 0;
 }
 
 
 // int no_of_recv_packets = 0;
-static int process_packets(ssize_t bytes_rcv, char recv_buffer[])
+int process_packets(ssize_t bytes_rcv, char recv_buffer[])
 {
     char packet_buffer[1024]; //temporal storage for a complete packet
     size_t packet_pos = 0;
     static int no_of_recv_packets = 0; // static makes it retain valu between calls
     FILE *fd;
     
-    for(size_t i = 0; i < bytes_rcv; i++)
+    for(ssize_t i = 0; i < bytes_rcv; i++)
     {
         packet_buffer[packet_pos++] = recv_buffer[i];//extract each packets
 
@@ -153,6 +155,8 @@ static int process_packets(ssize_t bytes_rcv, char recv_buffer[])
         send(cfd, send_buffer, no_of_bytes_read, 0);
     }
     fclose(fd); //close file
+
+    return 0;
 }
 
 void send_file_to_client()
@@ -181,7 +185,6 @@ void handle_client(int cfd, char *client_ip, int client_port)
     //You may assume the length of the packet will be shorter than the available heap size.  In other words, as long as you handle malloc() associated failures with error messages you may discard associated over-length packets.
     
     char recv_buffer[16384]; // 16mb buffer
-    FILE *fd; //create file descriptor
 
     //recieve loop
     while(!quit_requested)
@@ -304,6 +307,8 @@ int daemonize()
 
     openlog("TCP Server(aesdsocket_daemon)", LOG_PID|LOG_CONS, LOG_DAEMON);
     syslog(LOG_INFO, "Daemon started!");
+
+    return 0;
 }
 
 
