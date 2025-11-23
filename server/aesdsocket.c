@@ -116,7 +116,7 @@ static int process_packets(ssize_t bytes_rcv, char recv_buffer[])
     size_t packet_pos = 0;
     static int no_of_recv_packets = 0; // static makes it retain valu between calls
     FILE *fd;
-
+    
     for(size_t i = 0; i < bytes_rcv; i++)
     {
         packet_buffer[packet_pos++] = recv_buffer[i];//extract each packets
