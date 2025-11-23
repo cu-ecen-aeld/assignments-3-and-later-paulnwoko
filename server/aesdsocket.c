@@ -109,11 +109,12 @@ int setup_tcp_server_socket()
 }
 
 
+// int no_of_recv_packets = 0;
 static int process_packets(ssize_t bytes_rcv, char recv_buffer[])
 {
     char packet_buffer[1024]; //temporal storage for a complete packet
     size_t packet_pos = 0;
-    int no_of_recv_packets = 0;
+    static int no_of_recv_packets = 0; // static makes it retain valu between calls
     FILE *fd;
 
     for(size_t i = 0; i < bytes_rcv; i++)
@@ -141,8 +142,7 @@ static int process_packets(ssize_t bytes_rcv, char recv_buffer[])
             memset(packet_buffer, 0, sizeof(packet_buffer));
         }
     }
-    no_of_recv_packets = 0;
-
+    
     //send back file content to the client
     fseek(fd, 0, SEEK_SET);//go to the start of the file
     char send_buffer[1024];
