@@ -5,26 +5,17 @@ CFLAGS ?= -Wall -Wextra -g
 # Source and target
 SRC := aesdsocket.c
 TARGET := aesdsocket
-OUTDIR := server
-OUT := $(TARGET)
 
 # Default target
-all: $(OUT)
+all: $(TARGET)
 
-# Compile
-$(OUT): $(SRC) | $(OUTDIR)
+# Compile target in current directory
+$(TARGET): $(SRC)
 	$(CC) $(CFLAGS) -o $@ $^
 
-# Ensure output directory exists
-$(OUTDIR):
-	mkdir -p $(OUTDIR)
-
-# Clean
+# Clean target
 clean:
-	rm -f $(OUT)
+	rm -f $(TARGET)
 
-# Phony targets
 .PHONY: all clean default
-
-# Default is same as all
 default: all
