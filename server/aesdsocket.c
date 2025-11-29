@@ -147,11 +147,11 @@ int process_packets(ssize_t bytes_rcv, char recv_buffer[])
             else printf("reallocated buff size: %ld\n", packet_size);
         }
 
-        /* Protect against packet buffer overflow */
-        if (packet_pos >= BUFSIZE*5) {
-            printf("packet exceeds buffer size, discarding\n");
-            packet_pos = 0;
-        }
+        // /* Protect against packet buffer overflow */
+        // if (packet_pos >= BUFSIZE*5) {
+        //     printf("packet exceeds buffer size, discarding\n");
+        //     packet_pos = 0;
+        // }
 
         packet_buffer[packet_pos++] = recv_buffer[i];//extract each packets
 
@@ -182,11 +182,11 @@ int process_packets(ssize_t bytes_rcv, char recv_buffer[])
 
     while((no_of_bytes_read = fread(send_buffer, 1, sizeof(send_buffer), fd)) > 0)
     {
-        if(send(cfd, send_buffer, no_of_bytes_read, 0) < 0 )
-        {
-            if (errno == EINTR) continue;
-            perror("send error");
-        }
+        send(cfd, send_buffer, no_of_bytes_read, 0);
+        // {
+        //     if (errno == EINTR) continue;
+        //     perror("send error");
+        // }
     }
     
     free(packet_buffer);
@@ -364,6 +364,16 @@ void shutdown_server_and_clean_up()
         syslog(LOG_INFO, "Caught signal, exiting");
         printf("\nServer is shutting down\n");
         
+        //signals end of data transmission to client
+        if(shutdown(cfd, SHUT_WR) == -1) {
+            perror("shutdown failed");
+        }
+        // Stop the listening socket entirely during server shutdown
+        // This prevents new connections while existing ones are cleaned up.
+        if(shutdown(sfd, SHUT_RDWR) == -1) {
+        perror("shutdown failed");
+        }
+
         if(cfd != -1) close(cfd);
         if(sfd != -1) close(sfd);
 
@@ -380,6 +390,8 @@ void shutdown_server_and_clean_up()
         exit(0);//terminate program
     }
 }
+
+
 int daemonize()
 {
     /*  Fork the process
