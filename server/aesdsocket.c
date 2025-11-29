@@ -112,7 +112,6 @@ int setup_tcp_server_socket()
 
 
 
-// // int no_of_recv_packets = 0;
 int process_packets(ssize_t bytes_rcv, char recv_buffer[])
 {
     //temporal storage for a complete packet
@@ -148,6 +147,12 @@ int process_packets(ssize_t bytes_rcv, char recv_buffer[])
             else printf("reallocated buff size: %ld\n", packet_size);
         }
 
+        /* Protect against packet buffer overflow */
+        if (packet_pos >= BUFSIZE*5) {
+            printf("packet exceeds buffer size, discarding\n");
+            packet_pos = 0;
+        }
+
         packet_buffer[packet_pos++] = recv_buffer[i];//extract each packets
 
         //check for newline
@@ -165,7 +170,7 @@ int process_packets(ssize_t bytes_rcv, char recv_buffer[])
             packet_pos = 0;
             // memset(packet_buffer, 0, sizeof(packet_buffer));// clear packet buffer
         }
-        else ;
+        else {;}
     }
 
     printf("%ld bytes recieved and written to file\n", bytes_rcv);
@@ -173,11 +178,15 @@ int process_packets(ssize_t bytes_rcv, char recv_buffer[])
     //send back file content to the client
     fseek(fd, 0, SEEK_SET);//go to the start of the file
     char send_buffer[BUFSIZE];
-    size_t no_of_bytes_read;
+    ssize_t no_of_bytes_read;
 
     while((no_of_bytes_read = fread(send_buffer, 1, sizeof(send_buffer), fd)) > 0)
     {
-        send(cfd, send_buffer, no_of_bytes_read, 0);
+        if(send(cfd, send_buffer, no_of_bytes_read, 0) < 0 )
+        {
+            if (errno == EINTR) continue;
+            perror("send error");
+        }
     }
     
     free(packet_buffer);
@@ -233,7 +242,7 @@ void send_file_to_client()
 {
     /*send back file content to the client*/
     char send_buffer[BUFSIZE];
-    size_t no_of_bytes_read, sent_byte; 
+    ssize_t no_of_bytes_read, sent_byte; 
     
     FILE *fd = fopen(FILE_PATH, "r");
     if(fd == NULL)
@@ -322,7 +331,7 @@ void recieve_packets(int cfd, char *client_ip, int client_port)
                     packet_pos = 0;
                     // memset(packet_buffer, 0, sizeof(packet_buffer));// clear packet buffer
                 }
-                else ;
+                else {;}
             }
             //send back file content to the client
             send_file_to_client();
