@@ -19,8 +19,8 @@
 #define PORT 9000
 #define LISTEN_BACKLOG 10   //defines how may pending connections can queue before they are refused
 #define FILE_PATH "/var/tmp/aesdsocketdata"
-#define RECV_BUF_SIZE 1024*4 //2048*5
-#define SEND_BUF_SIZE 4096 //2048*5
+#define RECV_BUF_SIZE 2048*2 //
+#define SEND_BUF_SIZE 2048*2 //
 
 /*
      f. Returns the full content of /var/tmp/aesdsocketdata to the client as soon as the received data packet completes.
@@ -155,10 +155,9 @@ int process_packets(ssize_t bytes_rcv, char recv_buffer[])
     //temporal storage for a complete packet
     char packet_buffer[RECV_BUF_SIZE]; //temporal storage for a complete packet
     // char *packet_buffer = NULL; // dynamic allocation
-    size_t packet_size = 0;
 
     size_t packet_pos = 0;
-    static int no_of_recv_packets = 0; // static makes it retain valu between calls
+    static int packet_counter = 0, partial_packet_counter = 0; // static makes it retain valu between calls
     
     FILE *fd;    
     fd = fopen(FILE_PATH, "a+"); //open in append rd wr mode 
@@ -171,26 +170,12 @@ int process_packets(ssize_t bytes_rcv, char recv_buffer[])
 
     for(ssize_t i = 0; i < bytes_rcv; i++)
     { 
-        // Dynamic allocation - Expand buffer if needed
-        // if (packet_pos + 1 >= packet_size) 
-        // {
-        //     packet_size = (packet_size == 0) ? 1024 : (bytes_rcv);//packet_size * 2;
-        //     //packet_size = bytes_rcv;
-        //     packet_buffer = realloc(packet_buffer, packet_size);
-        //     if (!packet_buffer) {
-        //         perror("realloc failed");
-        //         free(packet_buffer);
-        //         exit(1);
-        //     }
-        //     else printf("reallocated buff size: %ld\n", packet_size);
-        // }
-
         // /* Protect against available heap buffer overflow */
         if ((packet_pos > RECV_BUF_SIZE) || (bytes_rcv > RECV_BUF_SIZE)) 
         {
-            syslog(LOG_ERR, "packet exceeds buffer size, discarding... Packet_pos : %ld\nbytes_rcv : %ld\npacket_size : %ld\n", packet_pos, bytes_rcv, packet_size);
+            syslog(LOG_ERR, "packet exceeds buffer size, discarding... Packet_pos : %ld\nbytes_rcv : %ld\npacket_size : %ld\n", packet_pos, bytes_rcv, packet_pos);
             printf("packet exceeds buffer size, discarding...\n");
-            printf("Packet_pos : %ld\nbytes_rcv : %ld\npacket_size : %ld\n", packet_pos, bytes_rcv, packet_size);
+            printf("Packet_pos : %ld\nbytes_rcv : %ld\npacket_size : %ld\n", packet_pos, bytes_rcv, packet_pos);
             //free(packet_buffer); for dynamic allocation
             packet_pos = 0;
             close(cfd);
@@ -203,51 +188,38 @@ int process_packets(ssize_t bytes_rcv, char recv_buffer[])
         if (recv_buffer[i] == '\n')
         {
             //append the complete packet to file
-            fwrite(packet_buffer, 1, packet_pos, fd);
+            ssize_t write_s = fwrite(packet_buffer, 1, packet_pos, fd);
             fflush(fd);// saves data to memory
-            printf("appended packet %d : %ld bytes recieved : %ld written to file\n", no_of_recv_packets++, bytes_rcv, packet_pos);
-            //if (packet_pos < packet_size) packet_buffer[packet_pos++] = '\0'; // null terminate packet buff
-
-            //printf("packet_buffer content: %s\n", packet_buffer);
-            // printf("packet_pos : %ld packet_size : %ld\n", packet_pos, packet_size);
+            printf("[Packet %d] : Size = %ld byte \n%ld byte written to file successfully\n", ((packet_counter++)+1), packet_pos, write_s);//packet_pos = packet size
+            
             //reset packet buff for next packet
             packet_pos = 0;
             // memset(packet_buffer, 0, sizeof(packet_buffer));// clear packet buffer
 
             //witing packet to file
-            printf("Reading and sending file content...\n");   
+            printf("Sending back file content to client...\n\n");   
             fseek(fd, 0, SEEK_SET);//go to the start of the file
+                        
+            //send back file content to the client
             char send_buffer[SEND_BUF_SIZE];
             ssize_t no_of_bytes_read;
-
-            //send back file content to the client
             while((no_of_bytes_read = fread(send_buffer, 1, sizeof(send_buffer), fd)) > 0)
             {
                 send(cfd, send_buffer, no_of_bytes_read, 0);
             }
         }
-        else if(i == (bytes_rcv-1)){
+        else if(i == (bytes_rcv-1))
+        {
+            printf("Large packet!!, Handling packets in chunks to prevent buffer overflow...\n");
             //append partial packet to file without new line
-            fwrite(packet_buffer, 1, packet_pos, fd);
+            ssize_t write_s = fwrite(packet_buffer, 1, packet_pos, fd);
             fflush(fd);// saves data to memory;
             packet_pos = 0;
-            printf("\n----endof buffer reached----\n i = %ld, bytes_rcv = %ld\n", i++, bytes_rcv);
+            printf("[%d]:%ld byte written to file\n\n", ((partial_packet_counter++)+1), write_s);
+            // printf("\n----endof buffer reached----\n i = %ld, bytes_rcv = %ld\n", i++, bytes_rcv);
         }
     }
 
-    printf("%ld bytes recieved and written to file\n", bytes_rcv);
-
-    // //send back file content to the client
-    // printf("Reading and sending file content...\n");   
-    // fseek(fd, 0, SEEK_SET);//go to the start of the file
-    // char send_buffer[SEND_BUF_SIZE];
-    // ssize_t no_of_bytes_read;
-
-    // while((no_of_bytes_read = fread(send_buffer, 1, sizeof(send_buffer), fd)) > 0)
-    // {
-    //     send(cfd, send_buffer, no_of_bytes_read, 0);
-    // }
-    
     //free(packet_buffer); for dynamic allocation
     fclose(fd); //close file
 
@@ -264,28 +236,29 @@ void handle_client(int cfd, char *client_ip, int client_port)
     char recv_buffer[RECV_BUF_SIZE]; //
     ssize_t bytes_rcv;
     size_t total_bytes_rcv = 0;
+
+    printf("Recieving packets...\n");
     //recieve loop
     while(!quit_requested)
     {
         while ((bytes_rcv = recv(cfd, recv_buffer, sizeof(recv_buffer), 0)) > 0)
         {
-            syslog(LOG_INFO, "Recieved %s (%zd bytes) from %s:%d", recv_buffer, bytes_rcv, client_ip, client_port);
-            //printf("Recieved %s (%zd bytes) from %s:%d\n", recv_buffer, bytes_rcv, client_ip, client_port);
+            // syslog(LOG_INFO, "Recieved %zd bytes from %s:%d", bytes_rcv, client_ip, client_port);
+            // printf("Recieved => %s (%zd bytes) from %s:%d\n", recv_buffer, bytes_rcv, client_ip, client_port);
             total_bytes_rcv += bytes_rcv;
-            //printf("Total bytes recieved : %zu\n", total_bytes_rcv);
-
-            process_packets(bytes_rcv, recv_buffer);            
-            //send back file content to the client
+            printf("Bytes recieved : %zu byte\n", bytes_rcv);
+            process_packets(bytes_rcv, recv_buffer); 
+            printf("---Total bytes recieved : %zu byte----\n", total_bytes_rcv);
         }
-        
-        printf("Total bytes recieved : %zu\n", total_bytes_rcv);
-        // // send(cfd, recv_buffer, bytes_rcv, 0); //echo recieved data 
-        if (bytes_rcv < 0){
+                
+        // send(cfd, recv_buffer, bytes_rcv, 0); //echo recieved data 
+        if (bytes_rcv < 0)
+        {
             //error or connecction close or termination signal recieved
             if(errno == EINTR && quit_requested)
                 break; //
                     
-            perror("recieve"); 
+            perror("recieve error"); 
             break;
         }
         else if(bytes_rcv == 0)//remote connection close
@@ -314,12 +287,11 @@ void send_file_to_client()
         if((sent_byte = send(cfd, send_buffer, no_of_bytes_read, 0)) < 0)
         {
             if (errno == EINTR) continue;
-            perror("send");
+            perror("send error");
         }
     }
     fclose(fd); //close file
 }
-
 
 
 void recieve_packets(int cfd, char *client_ip, int client_port)
@@ -331,13 +303,12 @@ void recieve_packets(int cfd, char *client_ip, int client_port)
     
     char recv_buffer[RECV_BUF_SIZE]; // 4kb buffer
     ssize_t bytes_rcv;
-    size_t total_bytes_rcv = 0;
 
     char *packet_buffer = NULL;
     size_t packet_size = 0;
 
     size_t packet_pos = 0;
-    static int no_of_recv_packets = 0; // static makes it retain valu between calls
+    static int packet_counter = 0; // static makes it retain valu between calls
     
 
     FILE *fd;    
@@ -362,6 +333,18 @@ void recieve_packets(int cfd, char *client_ip, int client_port)
             //process_packets(bytes_rcv, recv_buffer);            
             for(ssize_t i = 0; i < bytes_rcv; i++)
             {
+
+                // /* Protect against available heap buffer overflow */
+                if ((packet_pos > RECV_BUF_SIZE) || (bytes_rcv > RECV_BUF_SIZE)) 
+                {
+                    syslog(LOG_ERR, "packet exceeds buffer size, discarding... Packet_pos : %ld\nbytes_rcv : %ld\npacket_size : %ld\n", packet_pos, bytes_rcv, packet_size);
+                    printf("packet exceeds buffer size, discarding...\n");
+                    printf("Packet_pos : %ld\nbytes_rcv : %ld\npacket_size : %ld\n", packet_pos, bytes_rcv, packet_size);
+                    //free(packet_buffer); for dynamic allocation
+                    packet_pos = 0;
+                    close(cfd);
+                    break;
+                }                
                 // Expand buffer if needed
                 if (packet_pos + 1 >= packet_size) {
                     packet_size = (packet_size == 0) ? 1024 : packet_size * 2;
@@ -382,7 +365,7 @@ void recieve_packets(int cfd, char *client_ip, int client_port)
                     //append the complete packet to file
                     fwrite(packet_buffer, 1, packet_pos, fd);
                     fflush(fd);// saves data to memory
-                    printf("appended packet %d : %ld bytes recieved : %ld written to file\n", no_of_recv_packets++, bytes_rcv, packet_pos);
+                    printf("Appended packet %d : %ld bytes recieved : %ld written to file\n", packet_counter++, bytes_rcv, packet_pos);
                     if (packet_pos < packet_size) packet_buffer[packet_pos++] = '\0'; // null terminate packet buff
 
                     //printf("packet_buffer content: %s\n", packet_buffer);
@@ -390,18 +373,19 @@ void recieve_packets(int cfd, char *client_ip, int client_port)
                     //reset packet buff for next packet
                     packet_pos = 0;
                     // memset(packet_buffer, 0, sizeof(packet_buffer));// clear packet buffer
+                    //send back file content to the client
+                    send_file_to_client();
                 }
                 else {;}
             }
             //send back file content to the client
-            send_file_to_client();
+            //send_file_to_client();
         }
-        printf("Total bytes recieved : %zu\n", total_bytes_rcv);
         
         // // send(cfd, recv_buffer, bytes_rcv, 0); //echo recieved data 
         if (bytes_rcv < 0){
-            //error or connecction close or termination signal recieved
-            if(errno == EINTR && quit_requested)
+            if(errno == EINTR && quit_requested)            //error or connecction close or termination signal recieved
+
                 break; //
                     
             perror("recieve"); 
@@ -535,7 +519,7 @@ int main(int argc, char *argv[])
         
         char *client_ip = inet_ntoa(client_addr.sin_addr);
         int client_port = ntohs(client_addr.sin_port);
-        printf("Accepting connection from %s:%d\n", client_ip, client_port);
+        printf("\nAccepting connection from %s:%d\n", client_ip, client_port);
         syslog(LOG_INFO, "Accepted connection from %s:%d", client_ip, client_port);
 
         handle_client(cfd, client_ip, client_port);        
