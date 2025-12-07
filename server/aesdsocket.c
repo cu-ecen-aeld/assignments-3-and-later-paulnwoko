@@ -401,6 +401,19 @@ void recieve_packets(int cfd, char *client_ip, int client_port)
 }
 
 
+#define PIDFILE "/var/run/aesdsocket.pid"
+
+// static void write_pidfile(pid_t pid)
+// {
+//     FILE *f = fopen(PIDFILE, "w");
+//     if (!f) return;
+//     fprintf(f, "%d\n", pid);
+//     fclose(f);
+// }
+void remove_pidfile(void)
+{
+    unlink(PIDFILE);
+}
 
 int daemonize()
 {
@@ -443,6 +456,28 @@ int daemonize()
         /* parent exits */
         exit(EXIT_SUCCESS);
     }
+     
+    // final daemon process
+    FILE *fp = fopen(PIDFILE, "w");
+    if (!fp) {
+        perror("Failed to write PIDFILE");
+        exit(EXIT_FAILURE);
+    }
+
+    char pid_str[10];
+    int len = snprintf(pid_str, sizeof(pid_str), "%d\n", getpid());
+
+    // Use fwrite exactly as you asked:
+    if (fwrite(pid_str, 1, len, fp) != (size_t)len) {
+        perror("fwrite PIDFILE failed");
+        fclose(fp);
+        exit(EXIT_FAILURE);
+    }
+    fclose(fp);
+
+    // cleanup on exit
+    atexit(remove_pidfile);
+
 
     /*
     set file permission mask
