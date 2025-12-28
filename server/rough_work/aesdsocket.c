@@ -468,31 +468,28 @@ void *handle_client_thread(void *p_client_addr)
 }
 
 //timestamp thread function
-void *write_timestamp(void*)
+void *write_timestamp(void* arg)
 {
+    (void)arg;
     time_t current_time;
     struct tm time_info;
     char time_str[80];
     // FILE *fd = (FILE *) arg;
-    FILE *fd;    
-    fd = fopen(FILE_PATH, "a+"); //open in append rd wr mode 
-    if(fd == NULL){
-        perror("failed to open file");
-    }
 
     while(!quit_requested)
     {
-        //get cuurent tim
+        //get cuurent time
         time(&current_time);
         localtime_r(&current_time, &time_info);
-        strftime(time_str, sizeof(time_str), "Timestamp:%Y-%m-%d %H:%M:%S\n", &time_info);
+        strftime(time_str, sizeof(time_str), "timestamp:%a, %d %b %Y %T %z\n", &time_info);
 
         //write time str to file
-        write_to_file(fd, time_str, sizeof(time_str));
-        printf("%s", time_str);
-        sleep(10);
+        write_to_file(time_str, strlen(time_str));//writes exaxt string up to the position of the null char
+        // printf("%s", time_str);
+
+        // Interrupt-responsive sleep
+        for(int i=0; i<10 && !quit_requested; i++) sleep(1);
     }
-    fclose(fd);
     return NULL;
 }
 
