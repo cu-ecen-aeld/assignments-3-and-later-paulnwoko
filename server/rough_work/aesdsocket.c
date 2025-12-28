@@ -2,19 +2,21 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
 #include <signal.h>
 #include <errno.h>
 #include <sys/syslog.h>
+
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <time.h>
-
 
 #define PORT 9000
 #define LISTEN_BACKLOG 50   //defines how may pending connections can queue before they are refused
@@ -33,10 +35,12 @@
 */
 
 // create socket filde descriptors
-int sfd;
-//define thread and mutex
+int sfd, cfd;
+
+//define thread
 pthread_t client_thread, time_thread;
-pthread_mutex_t file_mutex;
+//define mutex
+pthread_mutex_t mutex;
 
 volatile sig_atomic_t quit_requested = 0; //quit flag set by signal handler
 void signal_handler(int sig)
@@ -61,7 +65,7 @@ void install_signal_handlers()
     // signal(SIGTERM, signal_handler);
 }
 
-void shutdown_server_and_clean_up(int cfd)
+void shutdown_server_and_clean_up()
 {
     if (quit_requested == 1)
     {
@@ -84,9 +88,6 @@ void shutdown_server_and_clean_up(int cfd)
             close(sfd);
         }
 
-        // join all thread
-        pthread_join(time_thread, NULL);
-
         //close and delete /var/tmp/aesdsocketdata. 
         if(unlink(FILE_PATH) == 0){
             printf("deleted %s\n", FILE_PATH);
@@ -96,7 +97,6 @@ void shutdown_server_and_clean_up(int cfd)
             perror("unlink error");
         }
         
-        pthread_mutex_destroy(&file_mutex);
         closelog();
         exit(0);//terminate program
     }
@@ -130,6 +130,7 @@ int setup_tcp_server_socket()
 
     //configure address
     struct sockaddr_in server_addr;
+
     memset(&server_addr, 0, sizeof(server_addr)); //initiatlizes the struct with 0 to avoide garbage data
     server_addr.sin_family = AF_INET; //IPv4
     server_addr.sin_addr.s_addr = INADDR_ANY; //listen on all network interfaces - mordern/common
@@ -142,7 +143,7 @@ int setup_tcp_server_socket()
         close(sfd);
         return -1;
     }
-    else printf("Socket bound to port %d \n", ntohs(server_addr.sin_port));
+    else printf("Socket bound to port %d successfully\n", ntohs(server_addr.sin_port));
 
     // Listens for and accepts a connection
     if(listen(sfd, LISTEN_BACKLOG) == -1)
@@ -157,60 +158,31 @@ int setup_tcp_server_socket()
 }
 
       
-ssize_t write_to_file(char data_str[], int data_len)
+ssize_t write_to_file(FILE *fd, char data_str[], int data_len)
 {
     /****** create lock *******/
-	pthread_mutex_lock(&file_mutex);
+	pthread_mutex_lock(&mutex);
 
-    FILE *fd;
-    fd = fopen(FILE_PATH, "a"); //open in append rd wr mode 
-    if(fd == NULL)
-    {
-        perror("failed to open file");
-        pthread_mutex_unlock(&file_mutex);
-        // break;
-        return -1;
-    }
+    // // FILE *fd; 
+    // fd = fopen(FILE_PATH, "a+"); //open in append rd wr mode 
+    // if(fd == NULL)
+    // {
+    //     perror("failed to open file");
+    //     // packet_pos = 0;
+    //     // break;
+    // }
     ssize_t write_s = fwrite(data_str, 1, data_len, fd);
     fflush(fd);// saves data to memory    
-    fclose(fd); //close file
-    
+    // fclose(fd); //close file
+
     /***** release lock *******/
-	pthread_mutex_unlock(&file_mutex);
+	pthread_mutex_unlock(&mutex);
 
     return write_s;
 }
 
 
-void send_file_to_client(int cfd)
-{
-    /*send back file content to the client*/
-
-    /****** create lock *******/
-	pthread_mutex_lock(&file_mutex);
-
-    char send_buffer[SEND_BUF_SIZE];
-    ssize_t no_of_bytes_read, sent_byte; 
-    
-    FILE *f = fopen(FILE_PATH, "r");
-    if(f == NULL)
-    {
-        perror("failed to open file");
-    }
-    while((no_of_bytes_read = fread(send_buffer, 1, sizeof(send_buffer), f)) > 0)
-    {
-        if((sent_byte = send(cfd, send_buffer, no_of_bytes_read, 0)) < 0)
-        {
-            if (errno == EINTR) continue;
-            perror("send error");
-        }
-    }
-    fclose(f); //close file
-    /***** release lock *******/
-	pthread_mutex_unlock(&file_mutex);
-}
-
-int process_packets(int cfd, ssize_t bytes_rcv, char recv_buffer[])
+int process_packets(ssize_t bytes_rcv, char recv_buffer[])
 {
     //temporal storage for a complete packet
     char packet_buffer[RECV_BUF_SIZE]; //temporal storage for a complete packet
@@ -219,14 +191,14 @@ int process_packets(int cfd, ssize_t bytes_rcv, char recv_buffer[])
     size_t packet_pos = 0;
     static size_t packet_counter = 0, partial_packet_counter = 0; // static makes it retain valu between calls
     
-    // FILE *fd;    
-    // fd = fopen(FILE_PATH, "a+"); //open in append rd wr mode 
-    // if(fd == NULL)
-    // { write_
-    //     perror("failed to open file");
-    //     packet_pos = 0;
-    //     // break;
-    // }
+    FILE *fd;    
+    fd = fopen(FILE_PATH, "a+"); //open in append rd wr mode 
+    if(fd == NULL)
+    {
+        perror("failed to open file");
+        packet_pos = 0;
+        // break;
+    }
 
     for(ssize_t i = 0; i < bytes_rcv; i++)
     { 
@@ -244,13 +216,16 @@ int process_packets(int cfd, ssize_t bytes_rcv, char recv_buffer[])
 
         packet_buffer[packet_pos++] = recv_buffer[i];//extract each packets
 
+        // /****** create lock *******/
+	    // pthread_mutex_lock(&mutex);
+
         //check for newline
         if (recv_buffer[i] == '\n')
         {
             //append the complete packet to file
             // ssize_t write_s = fwrite(packet_buffer, 1, packet_pos, fd);
             // fflush(fd);// saves data to memory
-            ssize_t write_s = write_to_file(packet_buffer, packet_pos);
+            ssize_t write_s = write_to_file(fd, packet_buffer, packet_pos);
 
             printf("[Packet %ld] : Size = %ld byte \n%ld byte written to file successfully\n", ((packet_counter++)+1), packet_pos, write_s);//packet_pos = packet size            
             //reset packet buff for next packet
@@ -259,15 +234,14 @@ int process_packets(int cfd, ssize_t bytes_rcv, char recv_buffer[])
 
             //send back file content to the client
             printf("Sending back file content to client...\n");   
-            send_file_to_client(cfd);
-            /*fseek(fd, 0, SEEK_SET);//go to the start of the file                            
+            fseek(fd, 0, SEEK_SET);//go to the start of the file
+                            
             char send_buffer[SEND_BUF_SIZE];
             ssize_t no_of_bytes_read;
             while((no_of_bytes_read = fread(send_buffer, 1, sizeof(send_buffer), fd)) > 0)
             {
                 send(cfd, send_buffer, no_of_bytes_read, 0);
             }
-            */
         }
         else if(i == (bytes_rcv-1))
         {
@@ -275,14 +249,22 @@ int process_packets(int cfd, ssize_t bytes_rcv, char recv_buffer[])
             //append partial packet to file without new line
             // ssize_t write_s = fwrite(packet_buffer, 1, packet_pos, fd);
             // fflush(fd);// saves data to memory;
-            ssize_t write_s = write_to_file(packet_buffer, packet_pos);
+            ssize_t write_s = write_to_file(fd, packet_buffer, packet_pos);
             packet_pos = 0;
             printf("[%ld]:%ld byte written to file\n\n", ((partial_packet_counter++)+1), write_s);
             // printf("\n----endof buffer reached----\n i = %ld, bytes_rcv = %ld\n", i++, bytes_rcv);
         }
+
+        // /***** release lock *******/
+	    // pthread_mutex_unlock(&mutex);
     }
+
+    //free(packet_buffer); for dynamic allocation
+    fclose(fd); //close file
+
     return 0;
 }
+
 
 void handle_client(int cfd, char *client_ip, int client_port)
 {
@@ -306,7 +288,7 @@ void handle_client(int cfd, char *client_ip, int client_port)
             total_bytes_rcv += bytes_rcv;
             printf("--- From %s:%d ----\n", client_ip, client_port);
             printf("Bytes recieved : %zu byte\n", bytes_rcv);
-            process_packets(cfd, bytes_rcv, recv_buffer); 
+            process_packets(bytes_rcv, recv_buffer); 
             printf("---Total bytes recieved : %zu byte----\n\n", total_bytes_rcv);
         }
                 
@@ -330,48 +312,36 @@ void handle_client(int cfd, char *client_ip, int client_port)
 }
 
 
-struct client_socket_addr_in
+
+void send_file_to_client()
 {
-    int cfd;
-    int client_port;
-    char *client_ip;    
-};  //struct client_socket_addr_in *p_client_socket_addr;
+    /*send back file content to the client*/
 
-// function to be executed in a thread
-void *handle_client_thread(void *p_client_addr)
-{
-    if (!p_client_addr) return NULL;
+    /****** create lock *******/
+	pthread_mutex_lock(&mutex);
 
-    struct client_socket_addr_in *p_client_socket_addr = (struct client_socket_addr_in *)p_client_addr;
-
-    handle_client(p_client_socket_addr->cfd, p_client_socket_addr->client_ip, ntohs(p_client_socket_addr->client_port));
-    close(p_client_socket_addr->cfd);
-    free(p_client_addr);
-    return NULL;
-}
-
-//timestamp thread function
-void *write_timestamp(void*)
-{
-    time_t current_time;
-    struct tm time_info;
-    char time_str[80];
-    // FILE *fd = (FILE *) arg;
-
-    while(!quit_requested)
+    char send_buffer[SEND_BUF_SIZE];
+    ssize_t no_of_bytes_read, sent_byte; 
+    
+    FILE *f = fopen(FILE_PATH, "r");
+    if(f == NULL)
     {
-        //get cuurent time
-        time(&current_time);
-        localtime_r(&current_time, &time_info);
-        strftime(time_str, sizeof(time_str), "Timestamp:%Y-%m-%d %H:%M:%S\n", &time_info);
-
-        //write time str to file
-        write_to_file(time_str, sizeof(time_str));
-        printf("%s", time_str);
-        sleep(10);
+        perror("failed to open file");
     }
-    return NULL;
+    while((no_of_bytes_read = fread(send_buffer, 1, sizeof(send_buffer), f)) > 0)
+    {
+        if((sent_byte = send(cfd, send_buffer, no_of_bytes_read, 0)) < 0)
+        {
+            if (errno == EINTR) continue;
+            perror("send error");
+        }
+    }
+    fclose(f); //close file
+
+    /***** release lock *******/
+	pthread_mutex_unlock(&mutex);
 }
+
 
 #define PIDFILE "/var/tmp/aesdsocket.pid" //"/var/run/aesdsocket.pid"
 void remove_pidfile(void)
@@ -385,7 +355,7 @@ int daemonize()
         - Parent exits.
         - Child continues running in the background.
         - This ensures the daemon is not a process group leader (important for setsid). 
-    */
+        */
     pid_t pid = fork();
     if (pid < 0) {
         syslog(LOG_ERR, "fork failed: %s", strerror(errno));
@@ -475,6 +445,58 @@ int daemonize()
     return 0;
 }
 
+
+struct client_socket_addr_in
+{
+    int cfd;
+    int client_port;
+    char *client_ip;    
+};  //struct client_socket_addr_in *p_client_socket_addr;
+
+// function to be executed in a thread
+void *handle_client_thread(void *p_client_addr)
+{
+    if (!p_client_addr)
+    return NULL;
+
+    struct client_socket_addr_in *p_client_socket_addr = (struct client_socket_addr_in *)p_client_addr;
+
+    handle_client(p_client_socket_addr->cfd, p_client_socket_addr->client_ip, ntohs(p_client_socket_addr->client_port));
+    close(p_client_socket_addr->cfd);
+    free(p_client_addr);
+    return NULL;
+}
+
+//timestamp thread function
+void *write_timestamp(void*)
+{
+    time_t current_time;
+    struct tm time_info;
+    char time_str[80];
+    // FILE *fd = (FILE *) arg;
+    FILE *fd;    
+    fd = fopen(FILE_PATH, "a+"); //open in append rd wr mode 
+    if(fd == NULL){
+        perror("failed to open file");
+    }
+
+    while(!quit_requested)
+    {
+        //get cuurent tim
+        time(&current_time);
+        localtime_r(&current_time, &time_info);
+        strftime(time_str, sizeof(time_str), "Timestamp:%Y-%m-%d %H:%M:%S\n", &time_info);
+
+        //write time str to file
+        write_to_file(fd, time_str, sizeof(time_str));
+        printf("%s", time_str);
+        sleep(10);
+    }
+    fclose(fd);
+    return NULL;
+}
+
+
 int main(int argc, char *argv[])
 {
     bool daemon_mode  = false;
@@ -482,28 +504,28 @@ int main(int argc, char *argv[])
     {
         daemon_mode = true;
     }
-    
-    //init mutex
-	pthread_mutex_init(&file_mutex, NULL);
-
-    //open connection to syslog
-    openlog("TCP Server(aesdsocket)", LOG_PID|LOG_CONS, LOG_USER );     
-    install_signal_handlers();
-    
-    //Opens a stream socket bound to port 9000, failing and returning -1 if any of the socket connection steps fail.
-    int cfd = 0;
-    syslog(LOG_INFO, "Starting TCP server on port %d", PORT);
-    if(setup_tcp_server_socket() < 0) quit_requested = true;
-
-    if (daemon_mode == true) daemonize();
 
     //create client thread
     int rc = pthread_create(&time_thread, NULL, write_timestamp, NULL);
     if (rc != 0){
-        syslog(LOG_ERR,"ERROR with timer pthread_create()");
         // free(time_thread_arg);
         return false;
     }
+    
+    //init mutex
+	pthread_mutex_init(&mutex, NULL);
+
+    //open connection to syslog
+    openlog("TCP Server(aesdsocket)", LOG_PID|LOG_CONS, LOG_USER ); 
+    
+    install_signal_handlers();
+    
+    //Opens a stream socket bound to port 9000, failing and returning -1 if any of the socket connection steps fail.
+    // int sfd, cfd;
+    syslog(LOG_INFO, "Starting TCP server on port %d", PORT);
+    if(setup_tcp_server_socket() < 0) shutdown_server_and_clean_up();
+
+    if (daemon_mode == true) daemonize();
 
     struct sockaddr_in client_addr;
     socklen_t client_len = sizeof(client_addr);
@@ -512,7 +534,7 @@ int main(int argc, char *argv[])
     while(!quit_requested)
     {
         //accept an incomming connection
-        int cfd = accept(sfd, (struct sockaddr *)&client_addr, &client_len);
+        cfd = accept(sfd, (struct sockaddr *)&client_addr, &client_len);
         if(cfd < 0)
         {
             if(errno == EINTR && quit_requested)
@@ -540,14 +562,12 @@ int main(int argc, char *argv[])
     	    free(p_client_socket_addr);
     	    return false;
         }
-        // pthread_join(client_thread, NULL);
+        // pthread_join(thread, NULL);
     }
     //clean up and shutdown server/client connection
     // free(p_client_socket_addr);
     if(pthread_join(client_thread, NULL) != 0) perror("\n client_thread error");
     if(pthread_join(time_thread, NULL) != 0) perror("\n time_thread error");
-    // pthread_mutex_destroy(&file_mutex);
-    shutdown_server_and_clean_up(cfd);
+    // pthread_mutex_destroy(&mutex);
+    shutdown_server_and_clean_up();
 }
-
-
