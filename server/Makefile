@@ -14,16 +14,20 @@ CFLAGS ?= -Wall -Wextra -g
 # Source and target
 SRC := aesdsocket.c
 TARGET := aesdsocket
+LDFLAGS ?= -lpthread -lrt
+
 
 # Default target
 all: $(TARGET)
 
+
 # Compile target in current directory
 $(TARGET): $(SRC)
-	$(CC) $(CFLAGS) -o $@ $^
+	@echo "Building with $(CC)..."
+	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
 
 # Clean target
 clean:
-	rm -f $(TARGET)
+	rm -f $(TARGET) *.o
 
 .PHONY: all clean
