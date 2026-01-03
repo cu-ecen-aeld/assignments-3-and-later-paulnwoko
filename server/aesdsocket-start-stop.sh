@@ -5,7 +5,8 @@
 DAEMON=/usr/bin/aesdsocket
 # DAEMON=$PWD/aesdsocket
 NAME=aesdsocket
-PIDFILE=/var/run/aesdsocket.pid
+# PIDFILE=/var/run/aesdsocket.pid
+PIDFILE=/var/tmp/aesdsocket.pid
 
 start() {
     echo "Starting $NAME..."
@@ -16,8 +17,8 @@ start() {
 
 stop() {
     echo "Stopping $NAME..."
-    # start-stop-daemon -K -n $NAME
-    start-stop-daemon -K -p "$PIDFILE" --retry TERM/5
+    start-stop-daemon -K -n $NAME
+    # start-stop-daemon -K -p "$PIDFILE" --retry TERM/5
     # rm -f "$PIDFILE"
 }
 

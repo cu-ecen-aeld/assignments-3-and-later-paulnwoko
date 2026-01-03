@@ -323,7 +323,6 @@ void handle_client(int cfd, char *client_ip, int client_port)
     }
 }
 
-
 // struct client_socket_addr_in
 // {
 //     int cfd;
@@ -335,7 +334,7 @@ void handle_client(int cfd, char *client_ip, int client_port)
 // };
 
 // function to be executed in a thread
-// 4. Thread function sets the completion flag
+// Thread function sets the completion flag
 void *handle_client_thread(void *p_client_addr)
 {
     if (!p_client_addr) return NULL;
@@ -356,7 +355,6 @@ void *write_timestamp(void* arg)
     time_t current_time;
     struct tm time_info;
     char time_str[80];
-    // FILE *fd = (FILE *) arg;
 
     while(!quit_requested)
     {
@@ -398,7 +396,6 @@ int daemonize()
         exit(EXIT_SUCCESS);
     }
 
-    /* child continues */
     /*
         Create a new session (setsid)
         - Detaches from terminal
@@ -421,20 +418,29 @@ int daemonize()
     if (pid > 0) {
         /* parent exits */
         exit(EXIT_SUCCESS);
+    }    
+
+    /*
+    final daemon process
+    set file permission mask
+    Most daemons use umask(0) to allow free file creation.
+    */
+    umask(0);
+
+    /* Change working directory
+        Usually / so daemon doesn’t block unmounting filesystems.
+    */
+    if (chdir("/") < 0) {
+        syslog(LOG_ERR, "chdir failed: %s", strerror(errno));
+        exit(EXIT_FAILURE);
     }
-     
+
     // open pid file
-    // FILE *fp = fopen(PIDFILE, "w");
-    // if (fp != NULL) {
-    //     fprintf(fp, "%d\n", getpid());
-    //     fclose(fp);
-    // }
-    // atexit(remove_pidfile);
     FILE *fp = fopen(PIDFILE, "w");
     if (fp == NULL) {
         perror("Failed to open PIDFILE");
         exit(EXIT_FAILURE);
-    }    
+    }
 
     char pid_str[10];
     int len = snprintf(pid_str, sizeof(pid_str), "%d\n", getpid());
@@ -447,21 +453,6 @@ int daemonize()
     fclose(fp);
     // cleanup on exit
     atexit(remove_pidfile);
-
-    /*
-    final daemon process
-    set file permission mask
-    Most daemons use umask(0) to allow free file creation.
-    */
-    umask(0);
-
-    /* Change working directory
-        Usually / so daemon doesn’t block unmounting filesystems.
-    */
-    if (chdir("/var/tmp") < 0) {
-        syslog(LOG_ERR, "chdir failed: %s", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
 
     /* Close standard file descriptors */
     close(STDIN_FILENO);
@@ -498,8 +489,7 @@ int main(int argc, char *argv[])
     openlog("TCP Server(aesdsocket)", LOG_PID|LOG_CONS, LOG_USER );     
     install_signal_handlers();
     
-    //Opens a stream socket bound to port 9000, failing and returning -1 if any of the socket connection steps fail.
-    //int cfd = 0;
+    //setup server.
     syslog(LOG_INFO, "Starting TCP server on port %d", PORT);
     if(setup_tcp_server_socket() < 0) quit_requested = true;
 
