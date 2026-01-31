@@ -68,23 +68,26 @@ void aesd_circular_buffer_add_entry(struct aesd_circular_buffer *buffer, const s
     /**
     * TODO: implement per description
     */
-    
     if (!buffer || !add_entry)  //sanity check for null pointers
     return;
 
-    if(buffer->in_offs == buffer->out_offs)
-    {
-        buffer->full = true;
-        //buffer->in_offs = 0;
-    }
-    
-    buffer->entry[buffer->in_offs] = *add_entry;
-    buffer->in_offs = (buffer->in_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
-
+    /* If buffer is full, next write overwrites the oldest entry */
     if(buffer->full == true)
     {
         buffer->out_offs = (buffer->out_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
         // buffer->out_offs = buffer->in_offs;
+    }
+
+    /* Store the new entry */
+    buffer->entry[buffer->in_offs] = *add_entry;
+    /* Advance write index */
+    buffer->in_offs = (buffer->in_offs + 1) % AESDCHAR_MAX_WRITE_OPERATIONS_SUPPORTED;
+    
+    /* Update full flag */
+    if(buffer->in_offs == buffer->out_offs)
+    {
+        buffer->full = true;
+        //buffer->in_offs = 0;
     }
 }
 
